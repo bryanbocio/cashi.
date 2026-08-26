@@ -976,6 +976,17 @@ export type Database = {
         Args: { p_business: string; p_type: string }
         Returns: string
       }
+      period_range: {
+        Args: { p_month_offset?: number; p_period: string; p_timezone: string }
+        Returns: {
+          from: string
+          label: string
+          prev_from: string
+          prev_to: string
+          previous_label: string
+          to: string
+        }[]
+      }
       search_products: {
         Args: { p_business: string; p_limit?: number; p_q: string }
         Returns: {
