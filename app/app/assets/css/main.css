@@ -81,3 +81,14 @@
 .p-component {
   font-family: var(--font-sans);
 }
+
+/* Área táctil mínima de 44 px en móvil. Los controles de PrimeVue miden 42 px
+   por defecto, justo por debajo de lo que exige el plan. */
+@media (width < 760px) {
+  .p-inputtext,
+  .p-select,
+  .p-datepicker-input,
+  .p-selectbutton .p-togglebutton {
+    min-height: 44px;
+  }
+}

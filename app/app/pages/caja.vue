@@ -81,7 +81,7 @@ async function charge() {
 </script>
 
 <template>
-  <section class="mx-auto w-full max-w-360 px-8 pt-7 pb-12 max-[760px]:px-4 max-[760px]:pt-5 min-[760px]:max-[1120px]:px-6">
+  <section class="mx-auto w-full max-w-360 px-8 pt-7 pb-12 max-[760px]:px-4 max-[760px]:pt-5 max-[760px]:pb-28 min-[760px]:max-[1120px]:px-6">
     <header class="mb-6.5">
       <p class="mb-2 text-[9.5px] font-semibold tracking-[.1em] text-subtle uppercase">Punto de venta</p>
       <h1 class="mb-1.5 font-display text-[clamp(24px,2.4vw,34px)] leading-[1.12] font-bold tracking-[-.03em]">Caja</h1>
@@ -105,6 +105,23 @@ async function charge() {
         :charging="charging"
         @charge="charge"
       />
+    </div>
+
+    <!-- En móvil el carrito puede ser más largo que la pantalla, así que el
+         total y el cobro se quedan fijos abajo en vez de al final de la página. -->
+    <div
+      class="fixed inset-x-0 bottom-0 z-15 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-black/10 bg-paper/95 px-4 py-3 backdrop-blur-xl min-[760px]:hidden"
+      data-testid="caja-mobile-bar"
+    >
+      <div class="min-w-0">
+        <span class="block text-[9px] font-semibold tracking-[.09em] text-subtle uppercase">Total a cobrar</span>
+        <strong class="block truncate font-display text-[21px] leading-none tracking-[-.03em]" data-testid="cart-total-mobile">
+          {{ formatMoney(cart.total) }}
+        </strong>
+      </div>
+      <UiButton :disabled="cart.isEmpty" :loading="charging" data-testid="caja-charge-mobile" @click="charge">
+        Cobrar
+      </UiButton>
     </div>
   </section>
 </template>

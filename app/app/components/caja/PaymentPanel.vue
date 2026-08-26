@@ -91,13 +91,13 @@ const isCredit = computed(() => cart.paymentMethod === 'CREDIT')
       </div>
     </dl>
 
-    <div class="grid gap-1 rounded-[9px] bg-ink p-4 text-white">
+    <div class="grid gap-1 rounded-[9px] bg-ink p-4 text-white max-[760px]:hidden">
       <span class="text-[9px] font-semibold tracking-[.09em] text-white/65 uppercase">Total a cobrar</span>
       <strong class="font-display text-[26px] leading-none tracking-[-.03em]" data-testid="cart-total">{{ formatMoney(cart.total) }}</strong>
     </div>
 
     <div class="grid gap-2">
-      <UiButton class="w-full" :disabled="cart.isEmpty" :loading="charging" data-testid="caja-charge" @click="emit('charge')">
+      <UiButton class="w-full max-[760px]:hidden" :disabled="cart.isEmpty" :loading="charging" data-testid="caja-charge" @click="emit('charge')">
         Cobrar {{ formatMoney(cart.total) }}
       </UiButton>
       <UiButton class="w-full" variant="ghost" :disabled="cart.isEmpty || charging" data-testid="caja-clear" @click="cart.clear()">

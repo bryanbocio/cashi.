@@ -21,7 +21,8 @@ function psql(query) {
   ], { encoding: 'utf8' }).trim()
 }
 
-// Las ventas creadas aquí se borran al final para no ensuciar el negocio demo.
+// Las ventas creadas aquí se borran al final y el stock del seed se restaura
+// entero: la fase móvil vende cinco productos distintos.
 function cleanup() {
   psql(`
     delete from public.stock_movement where ref_table = 'sale' and ref_id in (
@@ -30,9 +31,12 @@ function cleanup() {
     delete from public.sale where business_id = '${demoBusinessId}';
     update public.doc_sequence set next_value = 1
       where business_id = '${demoBusinessId}' and doc_type = 'SALE';
-    update public.product set stock = 12 where sku = 'PER-001';
-    update public.product set stock = 18 where sku = 'CUI-001';
-    update public.product set stock = 2 where sku = 'ACC-003';
+    update public.product p set stock = seed.stock
+    from (values
+      ('PER-001', 12), ('PER-002', 6), ('CUI-001', 18), ('CUI-002', 3), ('CUI-003', 20),
+      ('ACC-001', 4), ('ACC-002', 10), ('ACC-003', 2), ('ACC-004', 30)
+    ) as seed(sku, stock)
+    where p.business_id = '${demoBusinessId}' and p.sku = seed.sku;
   `)
 }
 
@@ -183,9 +187,57 @@ try {
     throw new Error('La Caja no debería mostrar un botón de «Nueva venta».')
   }
 
+  // Versión móvil: el total y el cobro viven en una barra fija, porque el
+  // carrito puede ser más largo que la pantalla.
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`${baseUrl}/caja`, { waitUntil: 'networkidle' })
+
+  for (const sku of ['PER-001', 'PER-002', 'CUI-001', 'CUI-003', 'ACC-001']) {
+    await page.locator('[data-testid="caja-search"]').fill(sku)
+    await page.locator(`[data-testid="result-${sku}"]`).click()
+  }
+  await waitForText(page.locator('[data-testid="cart-count"]'), '5 productos', 'Carrito movil')
+
+  const bar = page.locator('[data-testid="caja-mobile-bar"]')
+  await bar.waitFor({ state: 'visible' })
+  const barBox = await bar.boundingBox()
+  if (!barBox || barBox.y + barBox.height > 845 || barBox.y < 700) {
+    throw new Error(`La barra de cobro no quedo anclada abajo: ${JSON.stringify(barBox)}`)
+  }
+
+  const mobileCharge = page.locator('[data-testid="caja-charge-mobile"]')
+  const chargeBox = await mobileCharge.boundingBox()
+  if (!chargeBox || chargeBox.height < 44) {
+    throw new Error(`El boton de cobro movil mide ${chargeBox?.height ?? 0} px de alto y debe tener al menos 44.`)
+  }
+
+  // El boton de escritorio no debe estar visible en movil: uno solo manda.
+  if (await page.locator('[data-testid="caja-charge"]').isVisible()) {
+    throw new Error('El boton de cobro de escritorio sigue visible en movil.')
+  }
+
+  // Ningun control por debajo del area tactil minima.
+  const smallTargets = await page.evaluate(() => [...document.querySelectorAll('button, input')]
+    .map(el => ({ id: el.getAttribute('data-testid') ?? el.tagName, box: el.getBoundingClientRect() }))
+    .filter(({ box }) => box.width > 0 && box.height > 0 && box.height < 44)
+    .map(({ id, box }) => `${id} (${Math.round(box.height)} px)`))
+  if (smallTargets.length) {
+    throw new Error(`Controles por debajo de 44 px en movil: ${smallTargets.join(', ')}`)
+  }
+
+  await mobileCharge.click()
+  await page.getByText('Venta FAC-00003 registrada').waitFor()
+  await page.locator('[data-testid="cart-empty"]').waitFor()
+
+  const mobileSale = psql(`
+    select (select count(*) from public.sale_line l where l.sale_id = s.id)
+    from public.sale s where s.code = 'FAC-00003';
+  `)
+  if (mobileSale !== '5') throw new Error(`La venta movil guardo ${mobileSale} lineas y debian ser 5.`)
+
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
 
-  console.log('PASS: Caja buscó, armó el carrito con margen, rechazó el fiado sin cliente, cobró y dejó el stock correcto.')
+  console.log('PASS: Caja buscó, armó el carrito con margen, rechazó el fiado sin cliente, cobró en escritorio y en móvil con la barra fija.')
 } catch (error) {
   const pageText = await page?.locator('body').innerText().catch(() => '')
   console.error(`URL final: ${page?.url() ?? 'sin página'}\nErrores del navegador: ${browserErrors.join(' | ') || 'ninguno'}\nContenido: ${pageText?.slice(0, 3000)}`)
