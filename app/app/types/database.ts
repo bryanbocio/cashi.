@@ -883,6 +883,17 @@ export type Database = {
         Args: { p_currency: string; p_name: string; p_timezone: string }
         Returns: string
       }
+      create_sale: {
+        Args: {
+          p_business: string
+          p_customer: string
+          p_discount: number
+          p_due: string
+          p_lines: Json
+          p_method: string
+        }
+        Returns: Json
+      }
       has_business_role: {
         Args: {
           p_business: string

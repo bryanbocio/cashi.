@@ -82,7 +82,9 @@ select results_eq(
 );
 
 select is(
-  (select count(*) from public.stock_movement where business_id = '20000000-0000-0000-0000-000000000001'),
+  (select count(*) from public.stock_movement m
+   join public.product p on p.id = m.product_id
+   where p.sku like 'IMP-%'),
   0::bigint,
   'importing never writes stock movements'
 );

@@ -181,7 +181,9 @@ select results_eq(
 );
 
 select is(
-  (select count(*) from public.stock_movement),
+  (select count(*) from public.stock_movement m
+   join public.product p on p.id = m.product_id
+   where p.sku in ('PER-001', 'CUI-001', 'ACC-003', 'ACC-002')),
   5::bigint,
   'the member can read the movements of their business'
 );

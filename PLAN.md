@@ -28,7 +28,7 @@ Reemplazo propio de una app de gestión tipo Treinta. Genérico por diseño: sir
 ## 2. Reglas de negocio (fuente de verdad)
 
 1. **Costo congelado**: cada línea de venta guarda `unit_price` y `unit_cost` copiados del producto en el instante de la venta. Cambiar el costo de un producto **nunca** modifica la ganancia histórica.
-2. **Ganancia bruta** = Σ `qty × (unit_price − unit_cost)` de las líneas del periodo.
+2. **Ganancia bruta** = Σ `qty × (unit_price − unit_cost)` de las líneas del periodo, **menos los descuentos** de las ventas del periodo: el descuento sale del bolsillo del negocio, así que reduce lo que se gana.
 3. **Ganancia neta** = ganancia bruta − gastos con fecha dentro del periodo.
 4. **Margen bruto %** = bruta / ingresos. **Margen neto %** = neta / ingresos. Las variaciones de un porcentaje se expresan en **puntos porcentuales (pp)**; las de un monto, en **%**. A nivel de producto el margen bruto es `(price − cost) / price`; con `price = 0` es indefinido (`null`), no cero. Un producto con margen bruto **por debajo del 20 %** se marca como **margen estrecho**, y también lo hace el que tiene costo pero no precio.
 5. **Comparativa**: todo periodo se compara contra el periodo inmediatamente anterior de la misma longitud (hoy vs ayer, 7 d vs los 7 d previos, mes vs mes anterior).
@@ -121,7 +121,7 @@ Todas `security definer`, con validación de `is_member` al entrar, y `search_pa
 | Función                   | Firma                                                                                                        | Qué hace                                                                                                                                                      |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `create_business`        | `(p_name text, p_currency text, p_timezone text) → uuid`                                                  | Crea negocio, membresía OWNER, categorías base y`doc_sequence`.                                                                                            |
-| `create_sale`            | `(p_business uuid, p_customer uuid, p_method text, p_discount bigint, p_due date, p_lines jsonb) → jsonb` | Transacción: resuelve precio y costo actuales, inserta venta y líneas, descuenta stock, escribe movimientos, genera código, devuelve la venta con ganancia. |
+| `create_sale`            | `(p_business uuid, p_customer uuid, p_method text, p_discount bigint, p_due date, p_lines jsonb) → jsonb` | Transacción: resuelve precio y costo actuales, inserta venta y líneas, descuenta stock, escribe movimientos`SALE`, genera código, devuelve la venta con ganancia. |
 | `void_sale`              | `(p_sale uuid) → void`                                                                                    | Marca`VOID`, devuelve stock, escribe movimientos `RETURN`.                                                                                                 |
 | `create_quote`           | `(p_business uuid, p_customer uuid, p_lines jsonb, p_valid_until date) → jsonb`                           | Cotización con código`COT-`.                                                                                                                               |
 | `convert_quote`          | `(p_quote uuid, p_method text, p_due date) → jsonb`                                                       | Llama a`create_sale` con las líneas de la cotización y la cierra. Falla si `p_method='CREDIT'` sin cliente.                                              |
@@ -171,6 +171,8 @@ Ejemplo del contrato de `metrics_summary`:
 ```
 
 **Escritura de existencias**: `authenticated` no tiene `update` sobre `product.stock` (solo sobre `name`, `sku`, `category_id`, `supplier_id`, `cost`, `price`, `min_stock` y `active`) ni `insert/update/delete` sobre `stock_movement`. Cualquier cambio de stock entra por una función `security definer` que escribe su movimiento en la misma transacción; así el histórico de movimientos sirve de verdad para auditar.
+
+**Contrato de `create_sale`**: `p_lines` es `[{product_id, qty}]`; el precio y el costo los resuelve el servidor, nunca vienen del cliente. Las líneas repetidas del mismo producto se suman en una sola. El stock se descuenta recorriendo los productos **ordenados por id**, que es lo que evita interbloqueos entre ventas simultáneas. Vender sin existencias está permitido y puede dejar el stock negativo. `p_due` solo se guarda en las ventas `CREDIT`. Devuelve `{id, code, subtotal, discount, total, gross_profit, lines[]}`.
 
 ### Storage
 
