@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F3.1. Ya se puede vender de punta a punta desde la aplicación.
+Actualizado: 26 de agosto de 2026, después de completar F3.2. **La Fase 3 está terminada**: se vende de punta a punta en escritorio y en móvil.
 
 ## Preferencias del usuario
 
@@ -39,8 +39,9 @@ Completado y versionado:
 | S3.2 | `9c782bd` | RPC `void_sale` idempotente y vista `v_sale_detail` |
 | S3.3 | `ff2840c` | `search_products` y `frequent_products` para la Caja |
 | F3.1 | `e260579` | Vista Caja: buscador, carrito con margen y cobro |
+| F3.2 | `a33a884` | Barra fija de cobro en móvil y área táctil de 44 px |
 
-La siguiente tarea del `PLAN.md` es **F3.2 · Caja en móvil**, que en buena parte ya quedó resuelta al construir F3.1 (ver nota abajo). También están libres S4.1 (gastos) y S7.1 (`period_range`).
+La siguiente tarea del `PLAN.md` es **S4.1 · Gastos**, que abre la Fase 4. También están libres S7.1 (`period_range`) y toda la Fase 5 (compras), que depende de S2.2, ya hecha.
 
 ## Stack instalado
 
@@ -165,16 +166,19 @@ npm run db:types
 - El fiado sin cliente **no se bloquea en el cliente**: se envía y se muestra el error del backend, tal como pide el criterio de F3.1. La prueba filtra el `400` que eso deja en consola.
 - Cambiar de negocio vacía el carrito; si no, quedarían productos del negocio anterior en pantalla.
 - El generador de tipos **no modela la nulabilidad de los argumentos** de una función SQL: declara `p_customer` y `p_due` como obligatorios aunque acepten null. En `caja.vue` se resuelve con un cast al tipo `Args`, comentado en el sitio.
+- En móvil el total y el botón de cobro de la Caja viven en una **barra fija abajo** (`caja-mobile-bar`), y el bloque equivalente del panel se oculta con `max-[760px]:hidden`. Hay un solo sitio donde cobrar en cada tamaño, y los testids se llaman `caja-charge` y `caja-charge-mobile`.
+- Los controles de PrimeVue miden **42 px** de alto por defecto, justo por debajo del mínimo táctil de 44 que exige el plan. Hay una regla en `main.css` que los sube en móvil; si se añaden componentes nuevos, conviene comprobarlo.
+- Las pruebas que venden **tienen que restaurar el stock de todos los productos que tocan**, no solo de los que comprueban. La prueba de Caja restaura los nueve del seed.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar F3.1:
+Validaciones vigentes al completar F3.2:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
-- `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. Borra las ventas que crea.
+- `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. En móvil comprueba que la barra de cobro queda anclada abajo, que el botón de escritorio no está visible y que ningún control baja de 44 px. Borra las ventas y restaura el stock del seed.
 - `npm run app:test:inventory-import`: alta manual con categoría y proveedor nuevos, aviso de SKU repetido, importación con una fila válida y una con decimales, y comprobación en PostgreSQL de lo guardado. Limpia sus fixtures al terminar.
 - `npm run app:test:inventory`: listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, ajuste de existencias con su movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
@@ -188,20 +192,14 @@ Validaciones vigentes al completar F3.1:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F3.2
+## Próximo trabajo: S4.1
 
-Caja en móvil. **Buena parte ya quedó hecha en F3.1**: por debajo de 1120 px el
-panel de cobro se apila bajo el carrito, el botón de cobro es de ancho completo
-y los controles ± y de borrar miden 44 px. Antes de escribir código conviene
-mirar la pantalla a 390 px y decidir qué falta de verdad. Candidatos:
+Gastos, que abren la Fase 4:
 
-1. Que el total y el botón de cobro queden siempre a la vista al hacer scroll
-   con el carrito largo (barra fija abajo).
-2. Etiquetas más cortas en los métodos de pago si se aprietan.
-3. Que el teclado numérico no tape el campo de descuento.
-
-Si al revisarlo no falta nada, la tarea se cierra documentándolo en vez de
-inventar cambios.
+1. CRUD de `expense` con filtros de rango de fechas y categoría.
+2. Agregado por categoría para la vista de Gastos.
+3. Los cortes por fecha se calculan en la zona horaria del negocio (regla 12), no en UTC. Si el agregado necesita rangos de calendario, conviene hacer antes **S7.1 · `period_range`** y reutilizarla en vez de duplicar la lógica de fechas.
+4. `expense.category` es texto libre en el esquema, no una FK a `category`. Conviene decidir con el usuario si se deja así o se ofrece una lista fija.
 
 ## Diseño pendiente
 
