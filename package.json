@@ -19,6 +19,7 @@
     "app:test:auth": "npm --prefix app run test:auth",
     "app:test:business-switcher": "npm --prefix app run test:business-switcher",
     "app:test:inventory": "npm --prefix app run test:inventory",
+    "app:test:inventory-import": "npm --prefix app run test:inventory-import",
     "app:test:onboarding": "npm --prefix app run test:onboarding",
     "app:test:settings": "npm --prefix app run test:settings",
     "app:test:session-business": "npm --prefix app run test:session-business"

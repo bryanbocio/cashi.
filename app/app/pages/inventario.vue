@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import IconPlus from '~icons/lucide/plus'
 import IconSearch from '~icons/lucide/search'
+import IconUpload from '~icons/lucide/upload'
 import type { Database } from '~/types/database'
 import type { DataTableColumn } from '~/components/ui/DataTable.vue'
 import type { ProductRow } from '~/utils/inventory'
@@ -31,6 +33,8 @@ const categories = ref<Option[]>([])
 const suppliers = ref<Option[]>([])
 const loading = ref(true)
 const panelOpen = ref(false)
+const createOpen = ref(false)
+const importOpen = ref(false)
 const selectedId = ref<string | null>(null)
 
 const columns: DataTableColumn[] = [
@@ -107,6 +111,13 @@ watch(() => businessStore.activeBusinessId, async businessId => {
   await loadProducts()
 }, { immediate: true })
 
+async function reloadAll() {
+  const businessId = businessStore.activeBusinessId
+  if (!businessId) return
+  await loadFacets(businessId)
+  await loadProducts()
+}
+
 function openProduct(product: ProductRow) {
   selectedId.value = product.id
   panelOpen.value = true
@@ -122,10 +133,20 @@ function clearFilters() {
 
 <template>
   <section class="mx-auto w-full max-w-360 px-8 pt-7 pb-12 max-[760px]:px-4 max-[760px]:pt-5 min-[760px]:max-[1120px]:px-6">
-    <header class="mb-6.5">
-      <p class="mb-2 text-[9.5px] font-semibold tracking-[.1em] text-subtle uppercase">Catálogo</p>
-      <h1 class="mb-1.5 font-display text-[clamp(24px,2.4vw,34px)] leading-[1.12] font-bold tracking-[-.03em]">Inventario</h1>
-      <p class="max-w-155 text-[13.5px] text-muted">Controla costos, precios, existencias y niveles mínimos de reposición.</p>
+    <header class="mb-6.5 flex items-start justify-between gap-4 max-[760px]:flex-col">
+      <div>
+        <p class="mb-2 text-[9.5px] font-semibold tracking-[.1em] text-subtle uppercase">Catálogo</p>
+        <h1 class="mb-1.5 font-display text-[clamp(24px,2.4vw,34px)] leading-[1.12] font-bold tracking-[-.03em]">Inventario</h1>
+        <p class="max-w-155 text-[13.5px] text-muted">Controla costos, precios, existencias y niveles mínimos de reposición.</p>
+      </div>
+      <div class="flex shrink-0 gap-2 max-[760px]:w-full max-[760px]:flex-col">
+        <UiButton variant="secondary" class="max-[760px]:w-full" data-testid="open-import" @click="importOpen = true">
+          <IconUpload class="size-4" aria-hidden="true" />Importar CSV
+        </UiButton>
+        <UiButton class="max-[760px]:w-full" data-testid="open-create" @click="createOpen = true">
+          <IconPlus class="size-4" aria-hidden="true" />Nuevo producto
+        </UiButton>
+      </div>
     </header>
 
     <div class="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 max-[1120px]:grid-cols-1">
@@ -211,5 +232,7 @@ function clearFilters() {
     </template>
 
     <InventoryProductPanel v-model:open="panelOpen" :product="selectedProduct" @saved="loadProducts" />
+    <InventoryProductFormModal v-model:open="createOpen" :categories="categories" :suppliers="suppliers" @created="reloadAll" />
+    <InventoryImportModal v-model:open="importOpen" @imported="reloadAll" />
   </section>
 </template>

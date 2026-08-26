@@ -83,3 +83,11 @@ export const adjustmentReasons = [
   { label: 'Corrección de carga', value: 'Corrección de carga' },
   { label: 'Otro motivo', value: 'custom' },
 ]
+
+export const MAX_IMPORT_BYTES = 2 * 1024 * 1024
+
+/** Encabezados que acepta la Edge Function, con una fila de ejemplo. */
+export const CSV_TEMPLATE = [
+  'sku,nombre,categoria,proveedor,costo,precio,stock,stock_minimo',
+  'PER-100,Perfume de ejemplo 50 ml,Perfumería,Mi Proveedor,48000,79000,10,4',
+].join('\n') + '\n'

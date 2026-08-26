@@ -13,6 +13,7 @@
     "test:auth": "node tests/auth-flow.mjs",
     "test:business-switcher": "node tests/business-switcher.mjs",
     "test:inventory": "node tests/inventory-flow.mjs",
+    "test:inventory-import": "node tests/inventory-import.mjs",
     "test:onboarding": "node tests/onboarding-flow.mjs",
     "test:settings": "node tests/settings-flow.mjs",
     "test:session-business": "node tests/session-business.mjs"
