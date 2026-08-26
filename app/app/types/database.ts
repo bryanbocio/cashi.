@@ -890,6 +890,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_products: {
+        Args: { p_business: string; p_rows: Json }
+        Returns: Json
+      }
       is_member: { Args: { p_business: string }; Returns: boolean }
       logo_business_id: { Args: { p_object_name: string }; Returns: string }
       next_doc_code: {

@@ -128,6 +128,7 @@ Todas `security definer`, con validación de `is_member` al entrar, y `search_pa
 | `register_payment`       | `(p_business uuid, p_customer uuid, p_amount bigint, p_method text) → jsonb`                              | Abono; falla si excede la deuda.                                                                                                                               |
 | `adjust_stock`           | `(p_product uuid, p_delta int, p_reason text) → jsonb`                                                    | Corrige existencias y escribe el movimiento`ADJUST`. Motivo obligatorio; el resultado puede quedar negativo.                                                  |
 | `receive_purchase_order` | `(p_order uuid) → void`                                                                                   | Suma stock, actualiza costo del producto,`status=RECEIVED`. Idempotente.                                                                                     |
+| `import_products`        | `(p_business uuid, p_rows jsonb) → jsonb`                                                                 | Alta y actualización masiva por SKU en una transacción. Crea categorías y proveedores que falten y**nunca** toca el stock de un producto existente.     |
 | `suggest_purchase`       | `(p_business uuid) → jsonb`                                                                               | Líneas sugeridas por stock bajo y costo estimado.                                                                                                             |
 | `metrics_summary`        | `(p_business uuid, p_period text, p_month_offset int) → jsonb`                                            | Rango actual y anterior, ingresos, bruta, gastos, neta, por cobrar, y todos los porcentajes.                                                                   |
 | `metrics_daily`          | `(p_business uuid, p_days int) → jsonb`                                                                   | Serie diaria de venta y ganancia.                                                                                                                              |
@@ -179,7 +180,9 @@ Ejemplo del contrato de `metrics_summary`:
 ### Edge Functions (solo lo que no puede vivir en SQL)
 
 - `document-pdf` — recibe `{type: 'sale'|'quote', id}`, valida sesión, arma el HTML de la plantilla y devuelve el PDF con la tipografía embebida.
-- `import-products` — CSV grande: valida por fila, hace upsert por SKU y devuelve `{created, updated, errors[]}`.
+- `import-products` — CSV grande: parsea, valida por fila y delega la escritura en `import_products`. Devuelve `{created, updated, stock_ignored, errors[]}`, con `row`, `sku` y mensaje en cada error. Corre con la sesión de quien llama, no con la `service_role`, para que la RLS siga aplicando.
+  - Acepta coma, punto y coma o tabulador como separador, encabezados en español o inglés, comillas al estilo RFC 4180 y separadores de miles (`12.000`); rechaza decimales en vez de redondearlos.
+  - `stock_ignored` cuenta las filas cuyo stock se descartó por corresponder a un producto que ya existía: cambiar existencias exige `adjust_stock`.
 - `whatsapp-share` (opcional, fase posterior) — genera PNG y URL firmada.
 
 ---
