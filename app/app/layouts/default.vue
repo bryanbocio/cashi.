@@ -12,7 +12,13 @@ import IconShoppingCart from '~icons/lucide/shopping-cart'
 import IconTruck from '~icons/lucide/truck'
 
 const route = useRoute()
+const businessStore = useBusinessStore()
 const drawerOpen = ref(false)
+const businessInitials = computed(() => {
+  const name = businessStore.activeBusiness?.name
+  if (!name) return '—'
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join('')
+})
 const navigation = [
   { label: 'Resumen', to: '/', icon: IconLayout },
   { label: 'Caja', to: '/caja', icon: IconShoppingCart },
@@ -40,7 +46,7 @@ watch(() => route.fullPath, () => { drawerOpen.value = false })
       </button>
       <NuxtLink class="justify-self-center font-display text-[21px] font-bold tracking-[-.04em]" to="/">cashi<span class="text-accent">.</span></NuxtLink>
       <button class="relative grid size-11 cursor-pointer place-items-center rounded-[7px] border border-black/10 bg-panel font-display text-[11px] font-bold" type="button" aria-label="Cambiar negocio">
-        <span>CD</span><IconChevron class="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full bg-surface p-0.5" aria-hidden="true" />
+        <span>{{ businessInitials }}</span><IconChevron class="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full bg-surface p-0.5" aria-hidden="true" />
       </button>
     </header>
 

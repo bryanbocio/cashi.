@@ -10,7 +10,8 @@
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck --dotenv ../.env",
     "smoke": "node tests/smoke.mjs",
-    "test:auth": "node tests/auth-flow.mjs"
+    "test:auth": "node tests/auth-flow.mjs",
+    "test:session-business": "node tests/session-business.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",

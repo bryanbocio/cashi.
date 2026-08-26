@@ -103,7 +103,7 @@ try {
   await signupPage.locator('#login-email').fill(email)
   await signupPage.locator('#login-password').fill(password)
   await signupPage.getByRole('button', { name: 'Ingresar' }).click()
-  await signupPage.waitForURL(url => url.pathname === '/')
+  await signupPage.waitForURL(url => url.pathname === '/onboarding')
 
   const cookiesBeforeReload = await signupContext.cookies()
   if (!cookiesBeforeReload.some(cookie => cookie.name.includes('auth-token'))) {
@@ -139,7 +139,7 @@ try {
   await recoveryPage.locator('#login-email').fill(email)
   await recoveryPage.locator('#login-password').fill(newPassword)
   await recoveryPage.getByRole('button', { name: 'Ingresar' }).click()
-  await recoveryPage.waitForURL(url => url.pathname === '/')
+  await recoveryPage.waitForURL(url => url.pathname === '/onboarding')
   await recoveryContext.close()
 
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)

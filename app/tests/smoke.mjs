@@ -41,6 +41,12 @@ try {
   })
   page.on('pageerror', error => browserErrors.push(error.message))
 
+  await page.goto(`${baseUrl}/login`, { waitUntil: 'networkidle' })
+  await page.locator('#login-email').fill('demo@cashi.local')
+  await page.locator('#login-password').fill('CashiDemo2026!')
+  await page.getByRole('button', { name: 'Ingresar' }).click()
+  await page.waitForURL(url => url.pathname === '/')
+
   const privateRoutes = ['/', '/caja', '/cotizaciones', '/inventario', '/fiados', '/gastos', '/compras', '/reportes', '/ajustes']
   for (const route of privateRoutes) {
     const response = await page.goto(`${baseUrl}${route}`, { waitUntil: 'networkidle' })
@@ -55,16 +61,25 @@ try {
   await page.mouse.click(382, 420)
   await drawer.waitFor({ state: 'hidden' })
 
-  const publicRoutes = ['/login', '/registro', '/recuperar', '/nueva-contrasena', '/onboarding']
+  const publicPage = await browser.newPage({ viewport: { width: 390, height: 844 } })
+  publicPage.on('console', (message) => {
+    if (message.type() === 'error') browserErrors.push(message.text())
+  })
+  publicPage.on('pageerror', error => browserErrors.push(error.message))
+
+  const publicRoutes = ['/login', '/registro', '/recuperar', '/nueva-contrasena']
   for (const route of publicRoutes) {
-    const response = await page.goto(`${baseUrl}${route}`, { waitUntil: 'networkidle' })
+    const response = await publicPage.goto(`${baseUrl}${route}`, { waitUntil: 'networkidle' })
     if (!response?.ok()) throw new Error(`La ruta ${route} respondió ${response?.status()}.`)
     try {
-      await page.locator('h1').waitFor({ state: 'visible' })
+      await publicPage.locator('h1').waitFor({ state: 'visible' })
     } catch (error) {
       throw new Error(`La ruta ${route} no mostró su encabezado. Errores: ${browserErrors.join(' | ')}`, { cause: error })
     }
   }
+
+  await publicPage.goto(`${baseUrl}/onboarding`, { waitUntil: 'networkidle' })
+  await publicPage.waitForURL(url => url.pathname === '/login' && url.searchParams.get('redirect') === '/onboarding')
 
   const hydrationErrors = browserErrors.filter(message => /hydration|mismatch/i.test(message))
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)

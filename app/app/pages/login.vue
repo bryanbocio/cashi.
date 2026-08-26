@@ -16,6 +16,11 @@ const form = reactive({ email: '', password: '' })
 const errors = reactive<Partial<Record<keyof typeof form, string>>>({})
 const loading = ref(false)
 
+function redirectAfterLogin() {
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+  return redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
+}
+
 const notice = computed(() => {
   if (route.query.confirmed === '1') return 'Tu correo fue confirmado. Ya puedes iniciar sesión.'
   if (route.query.recovered === '1') return 'Tu contraseña fue actualizada. Inicia sesión nuevamente.'
@@ -42,7 +47,7 @@ async function submit() {
     await execute(client.auth.signInWithPassword(values), {
       errorTitle: 'No pudimos iniciar sesión',
     })
-    await navigateTo('/')
+    await navigateTo(redirectAfterLogin())
   } catch {
     // El wrapper ya presentó el error traducido.
   } finally {

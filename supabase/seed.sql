@@ -12,6 +12,31 @@ insert into auth.users (
   '{"full_name":"Usuario Demo"}', now(), now(), '', '', '', ''
 );
 
+-- Usuarios auxiliares para probar middleware y aislamiento entre negocios.
+-- Sin negocio: onboarding@cashi.local / CashiOnboarding2026!
+-- Otro tenant: other@cashi.local / CashiOther2026!
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change, email_change_token_new
+) values
+  (
+    '00000000-0000-0000-0000-000000000000',
+    '10000000-0000-0000-0000-000000000010',
+    'authenticated', 'authenticated', 'onboarding@cashi.local',
+    crypt('CashiOnboarding2026!', gen_salt('bf')), now(),
+    '{"provider":"email","providers":["email"]}',
+    '{"full_name":"Usuario Onboarding"}', now(), now(), '', '', '', ''
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000',
+    '10000000-0000-0000-0000-000000000011',
+    'authenticated', 'authenticated', 'other@cashi.local',
+    crypt('CashiOther2026!', gen_salt('bf')), now(),
+    '{"provider":"email","providers":["email"]}',
+    '{"full_name":"Usuario Otro Negocio"}', now(), now(), '', '', '', ''
+  );
+
 update public.profile
 set phone = '3000000000'
 where id = '10000000-0000-0000-0000-000000000001';
@@ -26,6 +51,20 @@ insert into public.membership (business_id, user_id, role)
 values (
   '20000000-0000-0000-0000-000000000001',
   '10000000-0000-0000-0000-000000000001', 'OWNER'
+);
+
+insert into public.business (id, name, created_by)
+values (
+  '20000000-0000-0000-0000-000000000010',
+  'Negocio Ajeno de Prueba',
+  '10000000-0000-0000-0000-000000000011'
+);
+
+insert into public.membership (business_id, user_id, role)
+values (
+  '20000000-0000-0000-0000-000000000010',
+  '10000000-0000-0000-0000-000000000011',
+  'OWNER'
 );
 
 insert into public.category (id, business_id, name) values
