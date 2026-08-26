@@ -143,9 +143,14 @@ select ok(
 );
 
 select is(
-  (select count(*) from public.v_credits),
+  (select count(*) from public.v_credits
+   where customer_id in (
+     '96000000-0000-0000-0000-000000000001',
+     '96000000-0000-0000-0000-000000000002',
+     '96000000-0000-0000-0000-000000000003'
+   )),
   2::bigint,
-  'the owner sees only customers with debt from their business'
+  'the owner sees only fixture customers with debt from their business'
 );
 
 select is(
@@ -371,13 +376,19 @@ select is(
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
 
 select is(
-  (select count(*) from public.v_credits),
+  (select count(*) from public.v_credits
+   where customer_id in (
+     '96000000-0000-0000-0000-000000000001',
+     '96000000-0000-0000-0000-000000000002',
+     '96000000-0000-0000-0000-000000000003'
+   )),
   1::bigint,
   'the demo owner still sees the one remaining debtor'
 );
 
 select is(
-  (select debt from public.v_credits),
+  (select debt from public.v_credits
+   where customer_id = '96000000-0000-0000-0000-000000000002'),
   400::bigint,
   'the remaining debt never became negative'
 );

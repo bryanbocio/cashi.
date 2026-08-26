@@ -13,6 +13,7 @@
     "test:auth": "node tests/auth-flow.mjs",
     "test:business-switcher": "node tests/business-switcher.mjs",
     "test:caja": "node tests/caja-flow.mjs",
+    "test:credits": "node tests/credits-flow.mjs",
     "test:expenses": "node tests/expenses-flow.mjs",
     "test:inventory": "node tests/inventory-flow.mjs",
     "test:inventory-import": "node tests/inventory-import.mjs",

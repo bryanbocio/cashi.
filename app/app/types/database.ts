@@ -1016,6 +1016,16 @@ export type Database = {
         }
         Returns: Json
       }
+      credit_dashboard_summary: {
+        Args: { p_business: string; p_from: string; p_to: string }
+        Returns: {
+          debtor_count: number
+          overdue_amount: number
+          overdue_count: number
+          paid_in_period: number
+          total_debt: number
+        }[]
+      }
       expense_category_totals: {
         Args: {
           p_business: string

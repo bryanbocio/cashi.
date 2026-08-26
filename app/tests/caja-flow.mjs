@@ -26,9 +26,11 @@ function psql(query) {
 function cleanup() {
   psql(`
     delete from public.stock_movement where ref_table = 'sale' and ref_id in (
-      select id from public.sale where business_id = '${demoBusinessId}'
+      select id from public.sale
+      where business_id = '${demoBusinessId}' and code in ('FAC-00001', 'FAC-00002', 'FAC-00003')
     );
-    delete from public.sale where business_id = '${demoBusinessId}';
+    delete from public.sale
+      where business_id = '${demoBusinessId}' and code in ('FAC-00001', 'FAC-00002', 'FAC-00003');
     update public.doc_sequence set next_value = 1
       where business_id = '${demoBusinessId}' and doc_type = 'SALE';
     update public.product p set stock = seed.stock
@@ -128,7 +130,7 @@ try {
   await page.getByText('Una venta a crédito necesita un cliente.').waitFor()
   await waitForText(page.locator('[data-testid="cart-count"]'), '2 productos', 'El carrito sobrevive al error')
 
-  if (psql(`select count(*) from public.sale where business_id = '${demoBusinessId}';`) !== '0') {
+  if (psql(`select count(*) from public.sale where business_id = '${demoBusinessId}' and code like 'FAC-%';`) !== '0') {
     throw new Error('El intento de fiado sin cliente dejó una venta registrada.')
   }
 
@@ -147,7 +149,7 @@ try {
     select s.code, s.total, s.discount, s.payment_method, c.name,
       (select count(*) from public.sale_line l where l.sale_id = s.id)
     from public.sale s left join public.customer c on c.id = s.customer_id
-    where s.business_id = '${demoBusinessId}';
+    where s.business_id = '${demoBusinessId}' and s.code = 'FAC-00001';
   `)
   if (stored !== 'FAC-00001|180000|10000|CREDIT|Ana Pérez|2') {
     throw new Error(`La venta no quedó como se esperaba: ${stored}`)

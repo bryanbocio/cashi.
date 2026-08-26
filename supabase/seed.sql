@@ -97,6 +97,37 @@ insert into public.customer (id, business_id, name, phone) values
   ('60000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000001', 'Luis Torres', '3205550104'),
   ('60000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000001', 'María López', '3205550105');
 
+-- Cartera demo: tres clientes con deuda, uno vencido y un abono del mes.
+-- Las fechas se calculan en la zona del negocio para que los estados sigan
+-- siendo útiles cada vez que se reconstruye la base local.
+with local_today as (
+  select (current_timestamp at time zone b.timezone)::date as today
+  from public.business b
+  where b.id = '20000000-0000-0000-0000-000000000001'
+)
+insert into public.sale (
+  id, business_id, code, customer_id, payment_method, status,
+  total, due_date, sold_at, created_by
+)
+select id, '20000000-0000-0000-0000-000000000001', code, customer_id,
+       'CREDIT'::public.payment_method, 'CONFIRMED'::public.sale_status,
+       total, due_date, sold_at, '10000000-0000-0000-0000-000000000001'
+from local_today,
+lateral (values
+  ('85000000-0000-0000-0000-000000000001'::uuid, 'DEMO-CRED-001', '60000000-0000-0000-0000-000000000001'::uuid, 450000::bigint, today - 10, current_timestamp - interval '20 days'),
+  ('85000000-0000-0000-0000-000000000002'::uuid, 'DEMO-CRED-002', '60000000-0000-0000-0000-000000000002'::uuid, 280000::bigint, today + 7, current_timestamp - interval '4 days'),
+  ('85000000-0000-0000-0000-000000000003'::uuid, 'DEMO-CRED-003', '60000000-0000-0000-0000-000000000003'::uuid, 160000::bigint, null::date, current_timestamp - interval '2 days')
+) as fixture(id, code, customer_id, total, due_date, sold_at);
+
+insert into public.payment (
+  id, business_id, customer_id, amount, method, paid_at
+) values (
+  '86000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000001',
+  '60000000-0000-0000-0000-000000000001',
+  100000, 'TRANSFER', current_timestamp
+);
+
 -- Gastos del mes local: hacen visible la distribución y el estado recurrente
 -- en la pantalla demo sin depender de fechas fijas del calendario.
 with local_month as (

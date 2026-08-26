@@ -247,7 +247,9 @@ select is(
 );
 
 select is(
-  (select count(*) from public.sale where business_id = '20000000-0000-0000-0000-000000000001'),
+  (select count(*) from public.sale
+   where business_id = '20000000-0000-0000-0000-000000000001'
+     and code like 'FAC-%'),
   7::bigint,
   'only the accepted sales were stored'
 );

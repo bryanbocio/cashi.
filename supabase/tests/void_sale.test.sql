@@ -155,7 +155,9 @@ select is(
 
 select is(
   (select count(*) from public.v_sale_detail
-   where business_id = '20000000-0000-0000-0000-000000000001' and status = 'CONFIRMED'),
+   where business_id = '20000000-0000-0000-0000-000000000001'
+     and code in ('FAC-00001', 'FAC-00002')
+     and status = 'CONFIRMED'),
   1::bigint,
   'filtering by status leaves only the live sale'
 );
@@ -186,7 +188,9 @@ select throws_ok(
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
 
 select is(
-  (select count(*) from public.v_sale_detail where business_id = '20000000-0000-0000-0000-000000000001'),
+  (select count(*) from public.v_sale_detail
+   where business_id = '20000000-0000-0000-0000-000000000001'
+     and code in ('FAC-00001', 'FAC-00002')),
   2::bigint,
   'the owner still sees both sales'
 );
