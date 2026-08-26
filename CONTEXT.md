@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar S2.3.
+Actualizado: 26 de agosto de 2026, después de completar F2.2. **La Fase 2 está terminada.**
 
 ## Preferencias del usuario
 
@@ -34,8 +34,9 @@ Completado y versionado:
 | — | `f8d56f0` | Recuperación del negocio propio ante un id guardado inválido |
 | — | `3b0cf81` | Responsive del Inventario entre 760 y 1120 px |
 | S2.3 | `673eb1e` | Edge Function `import-products` y RPC `import_products` |
+| F2.2 | `e401a70` | Alta de producto e importación CSV desde el Inventario |
 
-La siguiente tarea del `PLAN.md` es **F2.2 · Alta de producto e import**, la última de la Fase 2. La Fase 3 (Caja y ventas) ya se puede empezar en paralelo por S3.1.
+La siguiente tarea del `PLAN.md` es **S3.1 · `create_sale`**, que abre la Fase 3 (Caja y ventas). También están libres S4.1 (gastos) y S7.1 (`period_range`), que no dependen de ventas.
 
 ## Stack instalado
 
@@ -67,6 +68,7 @@ npm --prefix app run smoke
 npm run app:test:auth
 npm run app:test:business-switcher
 npm run app:test:inventory
+npm run app:test:inventory-import
 npm run app:test:onboarding
 npm run app:test:settings
 npm run app:test:session-business
@@ -131,15 +133,20 @@ npm run db:types
 - La escritura no está en la función sino en la RPC `import_products(p_business, p_rows jsonb)`: una sola transacción que resuelve categorías y proveedores por nombre, los crea si faltan y hace match de SKU sin distinguir mayúsculas.
 - **Por qué la RPC y no un upsert desde la función**: tras S2.2 el rol `authenticated` no tiene `update` sobre todas las columnas de `product`, y el upsert masivo de PostgREST incluye `business_id` en el `SET`, así que respondía `permission denied for table product`.
 - El stock solo se fija al crear un producto. Si el CSV trae existencias para un SKU que ya existe se ignoran y se cuentan en `stock_ignored`, porque cambiarlas exige `adjust_stock`.
+- `InventoryProductFormModal` da de alta un producto con un `insert` directo. Si el SKU se repite, el error `23505` se muestra en el campo («Ya existe un producto con este SKU.») en vez de como toast genérico.
+- Categoría y proveedor del alta son `PrimeSelect` **editables**: se puede elegir uno existente o escribir uno nuevo, que se crea al guardar. Se hizo así porque no hay ninguna otra pantalla para crear categorías, y un negocio nuevo solo trae `Perfumería` y `Tienda de ropa` de `create_business`.
+- `InventoryImportModal` llama a la función con `client.functions.invoke`. Cuando la función responde con error hay que leer `error.context.json()`: el mensaje del `FunctionsHttpError` por sí solo no dice nada útil.
+- El resumen del import muestra creados, actualizados, filas con error (fila, SKU y motivo) y un aviso cuando se ignoraron existencias. La plantilla descargable lleva BOM para que Excel no rompa los acentos.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar S2.3:
+Validaciones vigentes al completar F2.2:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
+- `npm run app:test:inventory-import`: alta manual con categoría y proveedor nuevos, aviso de SKU repetido, importación con una fila válida y una con decimales, y comprobación en PostgreSQL de lo guardado. Limpia sus fixtures al terminar.
 - `npm run app:test:inventory`: listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, ajuste de existencias con su movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
 - `npm run app:test:business-switcher`: dos negocios, contexto visible actualizado y, ya sobre el Inventario real, el negocio nuevo sin productos frente a los 9 del demo; versión móvil y cierre de sesión.
@@ -152,13 +159,18 @@ Validaciones vigentes al completar S2.3:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F2.2
+## Próximo trabajo: S3.1
 
-Alta de producto e importación desde la interfaz, lo último de la Fase 2:
+`create_sale`, la RPC central de la Fase 3 y la más delicada del plan:
 
-1. Modal de alta con SKU, nombre, categoría, proveedor, costo, precio, stock inicial y mínimo. Hoy **no existe forma de crear un producto desde la app**; el Inventario solo edita los que ya están.
-2. Flujo de CSV que llame a `import-products` con `supabase.functions.invoke` y muestre el resumen: creados, actualizados, stock ignorado y la lista de errores con su número de fila.
-3. Conviene ofrecer una plantilla CSV descargable con los encabezados que la función acepta.
+1. Resuelve precio y costo actuales, inserta venta y líneas, descuenta stock, escribe movimientos y genera el código con `next_doc_code`.
+2. **Costo congelado**: cada línea guarda `unit_price` y `unit_cost` del instante de la venta. Cambiar el costo después no puede alterar la ganancia histórica; el plan pide una prueba explícita de esto.
+3. `CREDIT` sin cliente debe fallar con mensaje claro.
+4. Dos llamadas concurrentes no pueden dejar el stock inconsistente.
+
+Nota: el stock se descuenta dentro de la RPC, que es `security definer`, así que
+la restricción de S2.2 sobre `product.stock` no estorba. Debe escribir su
+movimiento `SALE`, igual que `adjust_stock` escribe el suyo.
 
 ## Diseño pendiente
 
