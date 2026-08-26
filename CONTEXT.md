@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 25 de agosto de 2026, después de completar F1.1.
+Actualizado: 26 de agosto de 2026, después de completar F1.2.
 
 ## Preferencias del usuario
 
@@ -24,8 +24,9 @@ Completado y versionado:
 | F0.2 | `4d364a8` | Tipos Supabase y errores traducidos a Toast |
 | Decisión UI | `5292194` | Migración a PrimeVue 4 MIT |
 | F1.1 | `ef6a1cd` | Registro, login y recuperación de contraseña |
+| F1.2 | `66b2ec2` | Middleware de sesión y validación del negocio activo |
 
-La siguiente tarea del `PLAN.md` es **F1.2 · Middleware de sesión y negocio**.
+La siguiente tarea del `PLAN.md` es **F1.3 · Onboarding "Crear negocio"**.
 
 ## Stack instalado
 
@@ -71,6 +72,11 @@ npm run db:types
 - `/nueva-contrasena` valida la sesión de recuperación, actualiza la contraseña, cierra esa sesión y devuelve al login.
 - Los formularios usan Zod, mensajes por campo, estados de carga y errores del proveedor traducidos.
 - `app/tests/auth-flow.mjs` ejecuta registro → correo Mailpit → confirmación → login → recarga persistente → recuperación → nueva contraseña → nuevo login. Crea usuarios de prueba únicos solo en Supabase local.
+- `app/app/middleware/auth.global.ts` protege las rutas privadas y conserva el destino solicitado en `?redirect=`.
+- `app/app/middleware/business.ts` carga las membresías y envía a onboarding cuando no existe un negocio válido.
+- `app/app/stores/business.ts` conserva `cashi.active-business-id` en `localStorage`, valida el UUID mediante una consulta protegida por RLS y expone el negocio/membresía activos.
+- La sidebar ya muestra el nombre, las iniciales y el rol del negocio activo; el selector completo corresponde a F1.4.
+- El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
@@ -80,20 +86,19 @@ Todo pasó después de F1.1:
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
+- `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
+- `npm run db:test`: 36 pruebas SQL y 100 códigos concurrentes únicos.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F1.2
+## Próximo trabajo: F1.3
 
 Implementar:
 
-1. `auth.global.ts` para enviar usuarios anónimos a `/login` y evitar que usuarios autenticados vuelvan a las pantallas de acceso.
-2. Middleware/store de negocio que consulte las membresías del usuario.
-3. Redirección a `/onboarding` cuando no exista membresía.
-4. Negocio activo persistido y validado contra las membresías reales del usuario.
-5. Si se manipula el identificador local por el de un negocio ajeno, RLS debe devolver vacío y la app debe volver a onboarding.
-6. Pruebas automatizadas para sesión, redirecciones y manipulación del negocio activo.
-
-No implementar todavía el formulario real de onboarding; corresponde a F1.3. La página actual sigue siendo un placeholder válido.
+1. Sustituir el placeholder de `/onboarding` por el formulario de nombre, moneda y zona horaria.
+2. Validar el formulario y llamar a `create_business(p_name, p_currency, p_timezone)`.
+3. Recargar las membresías, activar el UUID devuelto y entrar al Resumen.
+4. Conservar el aviso de seguridad cuando F1.2 detecta un UUID manipulado.
+5. Probar que el negocio, la membresía OWNER, las categorías base y las secuencias quedan disponibles para el usuario nuevo.
 
 ## Diseño pendiente
 
