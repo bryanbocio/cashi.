@@ -1,0 +1,2 @@
+-- S0.1: marcador para que `supabase db reset` sea reproducible.
+-- Los datos de demostración se incorporan como parte de S0.2.

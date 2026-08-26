@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Environment files (keep the documented example)
+.env
+.env.*
+!.env.example
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# Logs and operating-system files
+*.log
+.DS_Store
+Thumbs.db
