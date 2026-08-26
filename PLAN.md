@@ -189,7 +189,7 @@ Ejemplo del contrato de `metrics_summary`:
 - **Registro** con email + contraseña (Supabase Auth) y confirmación por correo. Opcional Google OAuth (una casilla en el panel de Supabase, un botón en la UI).
 - Trigger `on auth.users insert` → crea `profile`.
 - **Onboarding**: si el usuario no tiene ninguna membresía, la app lo lleva a "Crear negocio" (nombre, moneda, zona horaria) que llama a `create_business`.
-- **Negocio activo**: guardado en cookie/`localStorage` y en un store de Pinia; toda consulta lo pasa como `p_business` o filtra por `business_id`. El middleware de Nuxt redirige a onboarding si no hay negocio activo válido.
+- **Negocio activo**: guardado en `localStorage` (la sesión vive en la cookie de Supabase, nunca ahí) y en un store de Pinia; toda consulta lo pasa como `p_business` o filtra por `business_id`. Si el id guardado ya no sirve, el store activa la primera membresía; el middleware solo manda a onboarding a quien no tiene ningún negocio.
 - **Cambio de negocio**: selector en el pie de la sidebar con la lista de membresías + "Crear otro negocio". Al cambiar se limpian los caches de datos.
 - **Recuperación de contraseña**: enlace por correo → pantalla de nueva contraseña.
 - **Invitaciones** (fase posterior): OWNER invita por email, se crea `membership` con rol; hasta entonces el rol único real es OWNER.
@@ -270,7 +270,7 @@ Formato: `ID · título — entregable — criterio de aceptación`. `dep:` = de
 ### Fase 1 — Cuentas y negocios
 
 - **F1.1 · Registro, login y recuperación** — páginas `/registro`, `/login`, `/recuperar`, `/nueva-contrasena` con validación (zod), estados de carga y errores del proveedor traducidos. dep: F0.1. *Aceptación*: registro → correo de confirmación → login → sesión persistente tras recargar.
-- **F1.2 · Middleware de sesión y negocio** — `auth.global.ts` redirige a `/login`; `business.ts` redirige a `/onboarding` si no hay membresías y valida que el negocio activo pertenezca al usuario. dep: F1.1, S0.4. *Aceptación*: manipular el negocio activo en `localStorage` por uno ajeno no filtra datos (RLS responde vacío) y la app vuelve a onboarding.
+- **F1.2 · Middleware de sesión y negocio** — `auth.global.ts` redirige a `/login`; `business.ts` redirige a `/onboarding` si no hay membresías y valida que el negocio activo pertenezca al usuario. dep: F1.1, S0.4. *Aceptación*: manipular el negocio activo en `localStorage` por uno ajeno no filtra datos (RLS responde vacío); si el usuario tiene membresías se activa la primera y sigue trabajando, y solo llega a onboarding quien no tiene ningún negocio.
 - **F1.3 · Onboarding "Crear negocio"** — formulario nombre, moneda, zona horaria → `create_business` → entra al Resumen. dep: F1.2.
 - **F1.4 · Selector de negocio** — control al pie de la sidebar: lista de membresías, negocio activo marcado, "Crear otro negocio", cerrar sesión. Al cambiar limpia caches y vuelve al Resumen. dep: F1.3. *Aceptación*: con dos negocios, las cifras del Resumen cambian por completo al alternar y no queda dato del anterior en pantalla.
 - **F1.5 · Ajustes** — datos del negocio (con subida de logo a Storage), datos de la cuenta, cambio de contraseña. dep: F1.4.

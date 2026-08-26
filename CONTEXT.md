@@ -85,7 +85,9 @@ npm run db:types
 - `app/tests/auth-flow.mjs` ejecuta registro → correo Mailpit → confirmación → login → recarga persistente → recuperación → nueva contraseña → nuevo login. Crea usuarios de prueba únicos solo en Supabase local.
 - `app/app/middleware/auth.global.ts` protege las rutas privadas y conserva el destino solicitado en `?redirect=`.
 - `app/app/middleware/business.ts` carga las membresías y envía a onboarding cuando no existe un negocio válido.
-- `app/app/stores/business.ts` conserva `cashi.active-business-id` en `localStorage`, valida el UUID mediante una consulta protegida por RLS y expone el negocio/membresía activos.
+- `app/app/stores/business.ts` conserva `cashi.active-business-id` en `localStorage`, valida el UUID mediante una consulta protegida por RLS y expone el negocio/membresía activos. **La sesión no vive en `localStorage`**: está en la cookie `sb-*-auth-token` que gestiona `@nuxtjs/supabase`.
+- Si el id guardado ya no sirve (negocio borrado o UUID ajeno) el store activa la primera membresía y el usuario sigue trabajando; solo llega a onboarding quien no tiene ningún negocio. El id ajeno nunca se activa, así que RLS sigue sin devolver datos de otro.
+- Ojo con `npm run db:reset`: borra todo lo que no esté en el seed. Si había un negocio creado desde la interfaz, la pestaña abierta queda apuntando a un UUID inexistente.
 - `app/app/components/BusinessSwitcher.vue` lista todas las membresías, marca el negocio activo y funciona tanto en la sidebar de escritorio como en el encabezado móvil.
 - Al alternar negocios se actualiza `cashi.active-business-id`, se limpian los caches de Nuxt y se vuelve al Resumen. Las vistas provisionales ya muestran el negocio real en vez de un nombre fijo.
 - El selector contiene "Crear otro negocio" y "Cerrar sesión"; al salir se eliminan la sesión de Supabase, el estado Pinia y el negocio guardado.

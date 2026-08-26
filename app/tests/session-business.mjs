@@ -94,20 +94,31 @@ try {
     key: activeBusinessKey,
     id: foreignBusinessId,
   })
+  // El negocio ajeno nunca se activa: RLS no lo devuelve y el store cae en la
+  // primera membresía del usuario en vez de mandarlo a crear un negocio.
   await demoPage.reload({ waitUntil: 'networkidle' })
-  await demoPage.waitForURL(url => (
-    url.pathname === '/onboarding' && url.searchParams.get('reason') === 'invalid-business'
-  ))
-  await demoPage.getByText('El negocio guardado no pertenece a tu cuenta.').waitFor()
+  await demoPage.waitForURL(url => url.pathname === '/')
+  await demoPage.getByTestId('active-business-name').getByText('Cashi Demo', { exact: true }).waitFor()
 
-  const removedBusiness = await demoPage.evaluate(key => localStorage.getItem(key), activeBusinessKey)
-  if (removedBusiness !== null) throw new Error('El UUID manipulado no fue eliminado de localStorage.')
+  const recoveredBusiness = await demoPage.evaluate(key => localStorage.getItem(key), activeBusinessKey)
+  if (recoveredBusiness !== demoBusinessId) {
+    throw new Error(`El UUID manipulado no fue reemplazado por el negocio propio. Quedó: ${recoveredBusiness}`)
+  }
+
+  // Y no se filtró ni un dato del negocio ajeno.
+  await demoPage.goto(`${baseUrl}/inventario`, { waitUntil: 'networkidle' })
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const text = await demoPage.locator('[data-testid="inventory-count"]').innerText().catch(() => null)
+    if (text?.includes('9 productos')) break
+    if (attempt === 59) throw new Error(`El inventario no mostró los 9 productos del negocio propio: ${text}`)
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
 
   await demoContext.close()
 
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
 
-  console.log('PASS: sesión protegida, onboarding sin membresías y rechazo RLS del negocio manipulado.')
+  console.log('PASS: sesión protegida, onboarding sin membresías y recuperación del negocio propio ante un UUID ajeno.')
 } finally {
   await browser?.close()
   server.kill()

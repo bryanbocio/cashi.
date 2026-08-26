@@ -84,10 +84,18 @@ export const useBusinessStore = defineStore('business', () => {
 
     const membership = memberships.value.find(item => item.business_id === storedId)
     if (!data || !membership) {
-      invalidStoredBusiness.value = true
-      activeBusinessId.value = null
-      localStorage.removeItem(ACTIVE_BUSINESS_STORAGE_KEY)
-      return false
+      // El id guardado ya no sirve: el negocio se borró o alguien puso uno
+      // ajeno. Como el usuario sí tiene membresías, se activa la primera en
+      // vez de mandarlo a crear un negocio que ya tiene. El id ajeno nunca
+      // llega a activarse, así que RLS sigue sin devolver datos de otro.
+      const fallbackId = memberships.value[0]?.business_id ?? null
+      activeBusinessId.value = fallbackId
+      invalidStoredBusiness.value = !fallbackId
+
+      if (fallbackId) localStorage.setItem(ACTIVE_BUSINESS_STORAGE_KEY, fallbackId)
+      else localStorage.removeItem(ACTIVE_BUSINESS_STORAGE_KEY)
+
+      return Boolean(fallbackId)
     }
 
     activeBusinessId.value = membership.business_id
