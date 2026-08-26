@@ -944,6 +944,21 @@ export type Database = {
         }
         Returns: Json
       }
+      frequent_products: {
+        Args: { p_business: string; p_days?: number; p_limit?: number }
+        Returns: {
+          category_name: string
+          cost: number
+          id: string
+          is_low_stock: boolean
+          min_stock: number
+          name: string
+          price: number
+          sku: string
+          sold_qty: number
+          stock: number
+        }[]
+      }
       has_business_role: {
         Args: {
           p_business: string
@@ -960,6 +975,20 @@ export type Database = {
       next_doc_code: {
         Args: { p_business: string; p_type: string }
         Returns: string
+      }
+      search_products: {
+        Args: { p_business: string; p_limit?: number; p_q: string }
+        Returns: {
+          category_name: string
+          cost: number
+          id: string
+          is_low_stock: boolean
+          min_stock: number
+          name: string
+          price: number
+          sku: string
+          stock: number
+        }[]
       }
       void_sale: { Args: { p_sale: string }; Returns: undefined }
     }

@@ -294,7 +294,7 @@ Formato: `ID · título — entregable — criterio de aceptación`. `dep:` = de
 
 - **S3.1 · `create_sale`** — la RPC completa de §3. dep: S0.4. *Aceptación*: test que cambia el costo del producto después de vender y comprueba que la ganancia de la venta no cambia; `CREDIT` sin cliente falla con mensaje claro; dos llamadas concurrentes no dejan stock inconsistente.
 - **S3.2 · `void_sale` y listados de venta** — anulación con devolución de stock y `v_sale_detail`. dep: S3.1.
-- **S3.3 · Búsqueda de caja y frecuentes** — RPC/vistas `search_products(q)` (máx 8) y `frequent_products(limit)` por ventas de 30 días. dep: S2.1.
+- **S3.3 · Búsqueda de caja y frecuentes** — `search_products(p_business, p_q, p_limit)` (8 por defecto, tope 20) y `frequent_products(p_business, p_limit, p_days)` por ventas `CONFIRMED` de los últimos días. Ambas devuelven tabla, no jsonb, y ordenan por relevancia: SKU exacto, luego comienzo, luego coincidencia parcial. dep: S2.1.
 - **F3.1 · Vista Caja** — buscador con resultados (stock y precio), frecuentes, carrito con ± y margen por línea, panel de cliente, método de pago, total y ganancia estimada. dep: S3.1, S3.3. *Aceptación*: cobrar limpia el carrito, muestra confirmación con el monto y el stock baja; fiado sin cliente muestra el error del backend; el botón "+ Nueva venta" no aparece dentro de Caja.
 - **F3.2 · Caja en móvil** — panel de pago apilado bajo el carrito, botón de cobro de ancho completo, controles de 44 px. dep: F3.1.
 
