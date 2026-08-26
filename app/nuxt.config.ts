@@ -38,6 +38,7 @@ export default defineNuxtConfig({
         'Button',
         'Card',
         'Column',
+        'DatePicker',
         'DataTable',
         'Dialog',
         'Drawer',

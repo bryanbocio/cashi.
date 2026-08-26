@@ -33,6 +33,7 @@ npm run app:dev
 npm run app:typecheck
 npm run app:build
 npm run app:test:auth
+npm run app:test:caja
 npm run app:test:inventory
 npm run app:test:inventory-import
 npm run app:test:session-business

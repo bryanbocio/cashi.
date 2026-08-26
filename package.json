@@ -19,6 +19,7 @@
     "app:build": "npm --prefix app run build",
     "app:test:auth": "npm --prefix app run test:auth",
     "app:test:business-switcher": "npm --prefix app run test:business-switcher",
+    "app:test:caja": "npm --prefix app run test:caja",
     "app:test:inventory": "npm --prefix app run test:inventory",
     "app:test:inventory-import": "npm --prefix app run test:inventory-import",
     "app:test:onboarding": "npm --prefix app run test:onboarding",
