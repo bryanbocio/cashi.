@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar S3.2. La Fase 2 está terminada y la Fase 3 va por su tercera tarea.
+Actualizado: 26 de agosto de 2026, después de completar S3.3. Todo el backend de la Fase 3 está listo; falta la interfaz.
 
 ## Preferencias del usuario
 
@@ -37,8 +37,9 @@ Completado y versionado:
 | F2.2 | `e401a70` | Alta de producto e importación CSV desde el Inventario |
 | S3.1 | `f9e7a02` | RPC `create_sale` con costo congelado y orden de bloqueo |
 | S3.2 | `9c782bd` | RPC `void_sale` idempotente y vista `v_sale_detail` |
+| S3.3 | `ff2840c` | `search_products` y `frequent_products` para la Caja |
 
-La siguiente tarea del `PLAN.md` es **S3.3 · Búsqueda de caja y frecuentes**, la última pieza de backend antes de F3.1 (vista Caja). También están libres S4.1 (gastos) y S7.1 (`period_range`).
+La siguiente tarea del `PLAN.md` es **F3.1 · Vista Caja**, con todo su backend ya disponible. También están libres S4.1 (gastos) y S7.1 (`period_range`).
 
 ## Stack instalado
 
@@ -151,11 +152,17 @@ npm run db:types
 - `v_sale_detail` **incluye las ventas anuladas** a propósito, para que el historial pueda mostrarlas. Cualquier cálculo de dinero debe filtrar `status = 'CONFIRMED'`; las métricas de la Fase 7 tienen que hacerlo.
 - `gross_profit` de la vista ya trae el descuento restado, igual que `create_sale`.
 - Cuidado con `sum()` en las vistas: devuelve `numeric` y los montos del proyecto son `bigint`. Hay que castear en la definición o los tipos generados y las pruebas no cuadran.
+- `search_products(p_business, p_q, p_limit)` y `frequent_products(p_business, p_limit, p_days)` **devuelven tabla, no jsonb**, así que los tipos generados traen la forma de la fila y el cliente puede pedir columnas sueltas.
+- El orden de la búsqueda es regla de negocio: SKU exacto, luego lo que empieza por el término, luego lo que solo lo contiene, y dentro de cada grupo por nombre. La Caja se teclea a ciegas y el primer resultado importa.
+- La búsqueda **no ignora acentos**: buscar «jabon» no encuentra «Jabón facial». Está cubierto por una prueba para que sea una decisión visible y no una sorpresa. Si molesta en uso real, se resuelve con `unaccent`.
+- `frequent_products` solo cuenta ventas `CONFIRMED` y dentro de la ventana de días; una venta anulada deja de contar.
+- **No se añadió índice trigram**, pese a lo previsto en S2.1: la consulta siempre filtra por `business_id`, los catálogos por negocio son pequeños y un índice GIN encarecería cada escritura del import masivo. Reevaluar con catálogos grandes de verdad.
+- Sí se añadió `sale(business_id, status, sold_at)` para que los frecuentes no recorran todo el historial.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar S3.2:
+Validaciones vigentes al completar S3.3:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -167,20 +174,23 @@ Validaciones vigentes al completar S3.2:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 191 pruebas SQL (las anteriores más 26 de `void_sale`), 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 214 pruebas SQL (las anteriores más 23 de `cash_search`), 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, y las 21 comprobaciones de la Edge Function.
 - `supabase db lint`: «No schema errors found».
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S3.3
+## Próximo trabajo: F3.1
 
-Búsqueda de caja y productos frecuentes:
+Vista Caja, la primera pantalla que usa todo el backend de la Fase 3:
 
-1. `search_products(q)` con máximo 8 resultados, pensada para teclear rápido en la Caja. Devuelve stock y precio.
-2. `frequent_products(limit)` por ventas de los últimos 30 días, contando solo las `CONFIRMED`.
-3. Ambas acotadas al negocio activo y con el aislamiento probado.
-4. Aquí sí puede valer la pena el índice trigram que se dejó pendiente en S2.1: la búsqueda de caja se teclea letra a letra.
+1. Buscador con resultados de `search_products` (stock y precio a la vista) y botones de `frequent_products`.
+2. Carrito con ± por línea y margen por línea. El total y la ganancia estimada del carrito son **la única excepción permitida** a calcular dinero fuera de Postgres; al cobrar manda `create_sale`.
+3. Panel de cliente, método de pago, total y ganancia estimada.
+4. Aceptación: cobrar limpia el carrito, muestra confirmación con el monto y baja el stock; fiado sin cliente muestra el error del backend; el botón «+ Nueva venta» no aparece dentro de Caja.
+
+Recordatorio: `create_sale` recibe `[{product_id, qty}]` y resuelve el precio en
+el servidor. El carrito no debe mandar precios.
 
 ## Diseño pendiente
 
