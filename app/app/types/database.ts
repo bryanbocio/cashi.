@@ -944,6 +944,20 @@ export type Database = {
         }
         Returns: Json
       }
+      expense_category_totals: {
+        Args: {
+          p_business: string
+          p_category?: string
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          category: string
+          expense_count: number
+          share_pct: number
+          total_amount: number
+        }[]
+      }
       frequent_products: {
         Args: { p_business: string; p_days?: number; p_limit?: number }
         Returns: {
