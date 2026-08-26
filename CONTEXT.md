@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar S2.2.
+Actualizado: 26 de agosto de 2026, después de completar F2.1.
 
 ## Preferencias del usuario
 
@@ -30,8 +30,9 @@ Completado y versionado:
 | F1.5 | `70741ab` | Ajustes de negocio, logo privado, cuenta y contraseña |
 | S2.1 | `62d45c7` | Vista `v_product_stats`, filtros de inventario e índices |
 | S2.2 | `64736d2` | RPC `adjust_stock` y cierre de escritura directa del stock |
+| F2.1 | `0eebe56` | Vista Inventario con filtros y panel de edición |
 
-La siguiente tarea del `PLAN.md` es **F2.1 · Vista Inventario**. S2.3 (import CSV) sigue pendiente y solo bloquea F2.2.
+La siguiente tarea del `PLAN.md` es **S2.3 · Import CSV** (Edge Function), que desbloquea F2.2. La Fase 3 (Caja y ventas) ya se puede empezar en paralelo por S3.1.
 
 ## Stack instalado
 
@@ -62,6 +63,7 @@ npm run app:build
 npm --prefix app run smoke
 npm run app:test:auth
 npm run app:test:business-switcher
+npm run app:test:inventory
 npm run app:test:onboarding
 npm run app:test:settings
 npm run app:test:session-business
@@ -110,17 +112,25 @@ npm run db:types
 - Se cerró la puerta de atrás: `authenticated` ya no puede hacer `update` de `product.stock` (conserva `name`, `sku`, `category_id`, `supplier_id`, `cost`, `price`, `min_stock`, `active`) ni escribir en `stock_movement`. Al intentarlo PostgREST responde `403 / 42501`. Si una tarea futura necesita mover stock, va por una función `security definer`, nunca por un update.
 - `stock_movement` ganó la columna `reason`, nula en los movimientos que generen ventas y compras.
 - Los mensajes de error de las RPC llegan al usuario tal cual mediante `toUserMessage` de `app/app/utils/errors.ts`, salvo `42501`, que se reemplaza por el texto genérico de permisos.
+- `/inventario` lista `v_product_stats` con `UiDataTable` en escritorio y `UiCardList` en móvil; el buscador rebota 250 ms y los filtros de categoría, proveedor, stock bajo y margen bajo se combinan en la misma consulta.
+- `app/app/utils/inventory.ts` centraliza el contrato de la vista: las columnas del `select`, la normalización de las columnas opcionales a `ProductRow`, el saneado del término de búsqueda y el estimado de margen del panel.
+- El `select` de PostgREST estrecha el tipo de la fila, así que el tipo de entrada de `toProductRow` es un `Pick` de la vista y no la vista completa; con la fila entera no compila.
+- El término de búsqueda se limpia de `,()"\` porque romperían la gramática del filtro `or` de PostgREST.
+- `InventoryProductPanel` edita costo, precio y mínimo con un `update`, y las existencias **solo** con `adjust_stock` y un motivo (cuatro presets más texto libre). El margen y el valor se recalculan en vivo como estimado antes de guardar; el dato de verdad lo devuelve la vista al refrescar.
+- `app/app/composables/useMoney.ts` formatea montos y porcentajes con `Intl.NumberFormat` según la moneda del negocio activo, sin decimales, y muestra `—` cuando el margen es indefinido.
+- `ui/Drawer.vue` acepta `position`, `panelClass` y `header`; con `header` deja de usarse el modo sin relleno de la navegación móvil. El inventario lo abre a la derecha.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar S2.2:
+Validaciones vigentes al completar F2.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
+- `npm run app:test:inventory`: listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, ajuste de existencias con su movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
-- `npm run app:test:business-switcher`: dos negocios, cambio desde Inventario al Resumen, contexto visible actualizado, versión móvil y cierre de sesión.
+- `npm run app:test:business-switcher`: dos negocios, contexto visible actualizado y, ya sobre el Inventario real, el negocio nuevo sin productos frente a los 9 del demo; versión móvil y cierre de sesión.
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
@@ -130,19 +140,17 @@ Validaciones vigentes al completar S2.2:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F2.1
+## Próximo trabajo: S2.3
 
-Implementar la vista Inventario sobre `v_product_stats`:
+Edge Function `import-products` para carga masiva por CSV:
 
-1. Tabla en escritorio y tarjetas en móvil, reutilizando `ui/DataTable.vue` y `ui/CardList.vue`.
-2. Buscador y filtros Todos / Stock bajo / Margen bajo con las consultas PostgREST ya documentadas.
-3. Panel lateral de edición con costo, precio y mínimo por `update` directo, y el stock **solo** por `adjust_stock` con su motivo; margen y valor calculados en vivo.
-4. Destacar la fila de stock bajo con su aviso.
+1. Validar por fila y hacer upsert por SKU dentro del negocio.
+2. Devolver `{created, updated, errors[]}` con el número de fila en cada error.
+3. Validar sesión y membresía dentro de la función; la `service_role` vive solo ahí.
+4. Es la dependencia de F2.2 (alta de producto e import), la única pieza que le falta a la Fase 2.
 
-Notas para la implementación:
-
-- Los tipos generados declaran todas las columnas de la vista como opcionales (`| null`), porque Postgres no infiere `not null` en vistas. La UI debe manejarlo en vez de forzar el tipo.
-- El cálculo en vivo del panel es la única excepción permitida al «la regla vive en Postgres»: es un estimado antes de guardar, igual que el del carrito.
+Pendiente relacionado: F2.2 añadirá el alta de producto, que hoy no existe en la
+interfaz. El Inventario solo edita productos ya creados.
 
 ## Diseño pendiente
 
