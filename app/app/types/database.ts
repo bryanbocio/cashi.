@@ -282,6 +282,13 @@ export type Database = {
             referencedRelation: "sale"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payment_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "v_sale_detail"
+            referencedColumns: ["id"]
+          },
         ]
       }
       product: {
@@ -725,6 +732,13 @@ export type Database = {
             referencedRelation: "sale"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sale_line_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "v_sale_detail"
+            referencedColumns: ["id"]
+          },
         ]
       }
       stock_movement: {
@@ -873,6 +887,42 @@ export type Database = {
           },
         ]
       }
+      v_sale_detail: {
+        Row: {
+          business_id: string | null
+          code: string | null
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string | null
+          discount: number | null
+          due_date: string | null
+          gross_profit: number | null
+          id: string | null
+          items: number | null
+          line_count: number | null
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
+          sold_at: string | null
+          status: Database["public"]["Enums"]["sale_status"] | null
+          subtotal: number | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       adjust_stock: {
@@ -911,6 +961,7 @@ export type Database = {
         Args: { p_business: string; p_type: string }
         Returns: string
       }
+      void_sale: { Args: { p_sale: string }; Returns: undefined }
     }
     Enums: {
       document_type: "SALE" | "QUOTE" | "PURCHASE"

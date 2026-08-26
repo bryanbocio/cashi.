@@ -39,6 +39,23 @@ async function sell(pool, index) {
   }
 }
 
+async function voidSale(pool, saleId) {
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await client.query('set local role authenticated')
+    await client.query("select set_config('request.jwt.claim.sub', $1, true)", [userId])
+    await client.query("select set_config('request.jwt.claim.role', 'authenticated', true)")
+    await client.query('select public.void_sale($1)', [saleId])
+    await client.query('commit')
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 async function main() {
   const pool = new Pool({ connectionString, max: 40 })
   const createdSaleIds = []
@@ -97,7 +114,38 @@ async function main() {
       throw new Error(`Se guardaron ${lines.rows[0].total} líneas y debían ser ${calls * 2}.`)
     }
 
-    console.log(`PASS: ${calls} ventas concurrentes sobre dos productos dejaron el stock exacto, ${codes.size} códigos únicos y ${expectedDelta} unidades en movimientos.`)
+    // Segunda fase: anular la misma venta desde varias conexiones a la vez no
+    // puede devolver el stock más de una vez.
+    const target = sales[0]
+    const beforeVoid = await pool.query(
+      'select id, stock from public.product where id = any($1::uuid[]) order by id',
+      [[productA, productB]],
+    )
+    const stockBeforeVoid = Object.fromEntries(beforeVoid.rows.map(row => [row.id, row.stock]))
+
+    await Promise.all(Array.from({ length: 10 }, () => voidSale(pool, target.id)))
+
+    const afterVoid = await pool.query(
+      'select id, stock from public.product where id = any($1::uuid[]) order by id',
+      [[productA, productB]],
+    )
+    for (const row of afterVoid.rows) {
+      const returned = row.id === productA ? 1 : 2
+      const expected = stockBeforeVoid[row.id] + returned
+      if (row.stock !== expected) {
+        throw new Error(`Anular en paralelo dejó ${row.id} en ${row.stock} y debía quedar en ${expected}.`)
+      }
+    }
+
+    const returns = await pool.query(
+      "select count(*)::integer as total from public.stock_movement where ref_id = $1 and type = 'RETURN'",
+      [target.id],
+    )
+    if (returns.rows[0].total !== 2) {
+      throw new Error(`Se escribieron ${returns.rows[0].total} movimientos RETURN y debían ser 2.`)
+    }
+
+    console.log(`PASS: ${calls} ventas concurrentes dejaron el stock exacto, ${codes.size} códigos únicos y ${expectedDelta} unidades en movimientos; 10 anulaciones simultáneas devolvieron el stock una sola vez.`)
   } finally {
     if (createdSaleIds.length) {
       await pool.query('delete from public.stock_movement where ref_id = any($1::uuid[])', [createdSaleIds])
