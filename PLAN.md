@@ -77,7 +77,7 @@ quote             id, business_id, code, customer_id null, valid_until date,
 quote_line        id, quote_id, product_id, name_snapshot, qty int,
                   unit_price bigint, unit_cost bigint
 stock_movement    id, business_id, product_id, type (SALE|PURCHASE|ADJUST|RETURN),
-                  qty_delta int, ref_table, ref_id, created_at
+                  qty_delta int, reason text null, ref_table, ref_id, created_at
 doc_sequence      business_id, doc_type (SALE|QUOTE|PURCHASE), next_value int,
                   primary key(business_id, doc_type)
 ```
@@ -126,6 +126,7 @@ Todas `security definer`, con validación de `is_member` al entrar, y `search_pa
 | `create_quote`           | `(p_business uuid, p_customer uuid, p_lines jsonb, p_valid_until date) → jsonb`                           | Cotización con código`COT-`.                                                                                                                               |
 | `convert_quote`          | `(p_quote uuid, p_method text, p_due date) → jsonb`                                                       | Llama a`create_sale` con las líneas de la cotización y la cierra. Falla si `p_method='CREDIT'` sin cliente.                                              |
 | `register_payment`       | `(p_business uuid, p_customer uuid, p_amount bigint, p_method text) → jsonb`                              | Abono; falla si excede la deuda.                                                                                                                               |
+| `adjust_stock`           | `(p_product uuid, p_delta int, p_reason text) → jsonb`                                                    | Corrige existencias y escribe el movimiento`ADJUST`. Motivo obligatorio; el resultado puede quedar negativo.                                                  |
 | `receive_purchase_order` | `(p_order uuid) → void`                                                                                   | Suma stock, actualiza costo del producto,`status=RECEIVED`. Idempotente.                                                                                     |
 | `suggest_purchase`       | `(p_business uuid) → jsonb`                                                                               | Líneas sugeridas por stock bajo y costo estimado.                                                                                                             |
 | `metrics_summary`        | `(p_business uuid, p_period text, p_month_offset int) → jsonb`                                            | Rango actual y anterior, ingresos, bruta, gastos, neta, por cobrar, y todos los porcentajes.                                                                   |
@@ -167,6 +168,8 @@ Ejemplo del contrato de `metrics_summary`:
           "expense_ratio": 20.2, "expense_ratio_pp": 2.3, "net_margin": 24.2, "net_profit_change": -4.7}
 }
 ```
+
+**Escritura de existencias**: `authenticated` no tiene `update` sobre `product.stock` (solo sobre `name`, `sku`, `category_id`, `supplier_id`, `cost`, `price`, `min_stock` y `active`) ni `insert/update/delete` sobre `stock_movement`. Cualquier cambio de stock entra por una función `security definer` que escribe su movimiento en la misma transacción; así el histórico de movimientos sirve de verdad para auditar.
 
 ### Storage
 

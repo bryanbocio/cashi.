@@ -734,6 +734,7 @@ export type Database = {
           id: string
           product_id: string
           qty_delta: number
+          reason: string | null
           ref_id: string | null
           ref_table: string | null
           type: Database["public"]["Enums"]["stock_movement_type"]
@@ -744,6 +745,7 @@ export type Database = {
           id?: string
           product_id: string
           qty_delta: number
+          reason?: string | null
           ref_id?: string | null
           ref_table?: string | null
           type: Database["public"]["Enums"]["stock_movement_type"]
@@ -754,6 +756,7 @@ export type Database = {
           id?: string
           product_id?: string
           qty_delta?: number
+          reason?: string | null
           ref_id?: string | null
           ref_table?: string | null
           type?: Database["public"]["Enums"]["stock_movement_type"]
@@ -872,6 +875,10 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_stock: {
+        Args: { p_delta: number; p_product: string; p_reason: string }
+        Returns: Json
+      }
       create_business: {
         Args: { p_currency: string; p_name: string; p_timezone: string }
         Returns: string
