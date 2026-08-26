@@ -809,6 +809,7 @@ export type Database = {
         Returns: boolean
       }
       is_member: { Args: { p_business: string }; Returns: boolean }
+      logo_business_id: { Args: { p_object_name: string }; Returns: string }
       next_doc_code: {
         Args: { p_business: string; p_type: string }
         Returns: string

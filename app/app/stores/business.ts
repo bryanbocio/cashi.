@@ -4,7 +4,7 @@ export const ACTIVE_BUSINESS_STORAGE_KEY = 'cashi.active-business-id'
 
 type BusinessSummary = Pick<
   Database['public']['Tables']['business']['Row'],
-  'currency' | 'id' | 'logo_path' | 'name' | 'timezone'
+  'address' | 'currency' | 'id' | 'logo_path' | 'name' | 'nit' | 'phone' | 'timezone'
 >
 
 export type BusinessMembership = Pick<
@@ -33,15 +33,18 @@ export const useBusinessStore = defineStore('business', () => {
     if (loadingPromise) return loadingPromise
 
     loadingPromise = (async () => {
+      const previousBusinessId = activeBusinessId.value
       const { data, error } = await client
         .from('membership')
-        .select('id, business_id, role, business(id, name, currency, timezone, logo_path)')
+        .select('id, business_id, role, business(id, name, nit, phone, address, currency, timezone, logo_path)')
         .order('created_at', { ascending: true })
 
       if (error) throw error
 
       memberships.value = (data ?? []) as BusinessMembership[]
-      activeBusinessId.value = memberships.value[0]?.business_id ?? null
+      activeBusinessId.value = memberships.value.some(item => item.business_id === previousBusinessId)
+        ? previousBusinessId
+        : memberships.value[0]?.business_id ?? null
       initialized.value = true
     })()
 
