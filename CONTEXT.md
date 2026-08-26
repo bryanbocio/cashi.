@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F3.2. **La Fase 3 está terminada**: se vende de punta a punta en escritorio y en móvil.
+Actualizado: 26 de agosto de 2026, después de completar S7.1 y S4.1. **La Fase 3 está terminada** y la Fase 4 ya tiene listo el backend de Gastos.
 
 ## Preferencias del usuario
 
@@ -9,6 +9,7 @@ Actualizado: 26 de agosto de 2026, después de completar F3.2. **La Fase 3 está
 - El producto debe ser genérico; ejemplos de negocios indicados por el usuario: perfumería y tienda de ropa.
 - Usar Nuxt 4, Tailwind CSS y PrimeVue.
 - Se decidió expresamente usar PrimeVue 4 bajo MIT. No subir a PrimeVue 5 sin revisar nuevamente su licencia con el usuario.
+- Para Gastos, ofrecer categorías predefinidas y una opción **Otro** que permita escribir el concepto. `expense.category` se mantiene como texto para no cerrar el catálogo en SQL.
 
 ## Estado actual
 
@@ -40,8 +41,10 @@ Completado y versionado:
 | S3.3 | `ff2840c` | `search_products` y `frequent_products` para la Caja |
 | F3.1 | `e260579` | Vista Caja: buscador, carrito con margen y cobro |
 | F3.2 | `a33a884` | Barra fija de cobro en móvil y área táctil de 44 px |
+| S7.1 | `8d7088a` | Rangos de calendario por zona horaria del negocio |
+| S4.1 | `fc6b530` | CRUD, filtros y distribución por categoría de Gastos |
 
-La siguiente tarea del `PLAN.md` es **S4.1 · Gastos**, que abre la Fase 4. También están libres S7.1 (`period_range`) y toda la Fase 5 (compras), que depende de S2.2, ya hecha.
+La siguiente tarea del `PLAN.md` es **S4.2 · Fiados**. Después siguen F4.1 (interfaz de Gastos) y F4.2 (interfaz de Fiados).
 
 ## Qué está construido y qué no
 
@@ -56,9 +59,11 @@ Todavía son `PagePlaceholder`, sin datos:
 
 - `/` (Resumen), `/cotizaciones`, `/fiados`, `/gastos`, `/compras`, `/reportes`
 
-Backend disponible y **sin interfaz que lo use**: `void_sale` y `v_sale_detail`
-(S3.2). La Caja registra ventas pero no hay pantalla para verlas ni anularlas;
-eso llega con F7.3 (Reportes) y el visor de documentos de la Fase 8.
+Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
+(S3.2), `period_range` (S7.1) y el CRUD/agregado de Gastos (S4.1). La
+Caja registra ventas pero no hay pantalla para verlas ni anularlas; eso llega
+con F7.3 (Reportes) y el visor de documentos de la Fase 8. `/gastos` sigue
+siendo provisional hasta F4.1.
 
 ## Convenciones de trabajo
 
@@ -196,10 +201,15 @@ npm run db:types
 - Los controles de PrimeVue miden **42 px** de alto por defecto, justo por debajo del mínimo táctil de 44 que exige el plan. Hay una regla en `main.css` que los sube en móvil; si se añaden componentes nuevos, conviene comprobarlo.
 - Las pruebas que venden **tienen que restaurar el stock de todos los productos que tocan**, no solo de los que comprueban. La prueba de Caja restaura los nueve del seed.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
+- `period_range(p_timezone, p_period, p_month_offset)` devuelve límites `[from, to)` y el periodo anterior para `today`, `7d` y `month`. Los límites son medianoches reales de la zona indicada, incluso en cambios de horario de verano; `month_offset` positivo navega hacia el pasado.
+- La variante determinista `private.period_range_at(..., p_now)` existe solo para pruebas de bordes. No exponerla al cliente ni duplicar el cálculo de fechas en las métricas.
+- El CRUD de Gastos se hace directamente sobre `expense` y queda protegido por las políticas RLS existentes. Un trigger recorta espacios de `concept` y `category` antes de guardar.
+- `expense_category_totals(p_business, p_from, p_to, p_category)` devuelve `category`, `total_amount`, `expense_count` y `share_pct`. Usa rango local de fechas `[from, to)`; el filtro de categoría es opcional y no distingue mayúsculas, pero el porcentaje siempre se calcula contra todo el rango.
+- Para F4.1, las categorías serán opciones predefinidas más **Otro**. Al elegir Otro se debe habilitar el texto del concepto del gasto; no convertir `expense.category` en enum ni en FK sin consultarlo nuevamente.
 
 ## Última validación
 
-Validaciones vigentes al completar F3.2:
+Validaciones vigentes al completar S4.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -212,20 +222,20 @@ Validaciones vigentes al completar F3.2:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 214 pruebas SQL (las anteriores más 23 de `cash_search`), 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, y las 21 comprobaciones de la Edge Function.
-- `supabase db lint`: «No schema errors found».
+- `npm run db:test`: 267 pruebas SQL, 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, y las 21 comprobaciones de la Edge Function.
+- `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S4.1
+## Próximo trabajo: S4.2
 
-Gastos, que abren la Fase 4:
+Fiados, que completa el backend de la Fase 4:
 
-1. CRUD de `expense` con filtros de rango de fechas y categoría.
-2. Agregado por categoría para la vista de Gastos.
-3. Los cortes por fecha se calculan en la zona horaria del negocio (regla 12), no en UTC. Si el agregado necesita rangos de calendario, conviene hacer antes **S7.1 · `period_range`** y reutilizarla en vez de duplicar la lógica de fechas.
-4. `expense.category` es texto libre en el esquema, no una FK a `category`. Conviene decidir con el usuario si se deja así o se ofrece una lista fija.
+1. Vista `v_credits` aislada por negocio.
+2. RPC `register_payment` y cálculo de vencidos por `due_date` en la zona horaria del negocio.
+3. Un abono mayor a la deuda debe fallar y la deuda nunca puede quedar negativa.
+4. Tras S4.2 siguen F4.1 (Vista Gastos) y F4.2 (Vista Fiados). F4.1 debe respetar la decisión de categorías predefinidas + Otro descrita arriba.
 
 ## Diseño pendiente
 
