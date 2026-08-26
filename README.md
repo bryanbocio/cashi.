@@ -41,6 +41,7 @@ se incorporarán en S0.2.
 npm run supabase:start
 npm run supabase:status
 npm run db:reset
+npm run db:test
 npm run supabase:stop
 ```
 
