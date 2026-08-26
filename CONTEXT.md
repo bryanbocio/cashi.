@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F2.1.
+Actualizado: 26 de agosto de 2026, después de completar S2.3.
 
 ## Preferencias del usuario
 
@@ -31,8 +31,11 @@ Completado y versionado:
 | S2.1 | `62d45c7` | Vista `v_product_stats`, filtros de inventario e índices |
 | S2.2 | `64736d2` | RPC `adjust_stock` y cierre de escritura directa del stock |
 | F2.1 | `0eebe56` | Vista Inventario con filtros y panel de edición |
+| — | `f8d56f0` | Recuperación del negocio propio ante un id guardado inválido |
+| — | `3b0cf81` | Responsive del Inventario entre 760 y 1120 px |
+| S2.3 | `673eb1e` | Edge Function `import-products` y RPC `import_products` |
 
-La siguiente tarea del `PLAN.md` es **S2.3 · Import CSV** (Edge Function), que desbloquea F2.2. La Fase 3 (Caja y ventas) ya se puede empezar en paralelo por S3.1.
+La siguiente tarea del `PLAN.md` es **F2.2 · Alta de producto e import**, la última de la Fase 2. La Fase 3 (Caja y ventas) ya se puede empezar en paralelo por S3.1.
 
 ## Stack instalado
 
@@ -68,6 +71,7 @@ npm run app:test:onboarding
 npm run app:test:settings
 npm run app:test:session-business
 npm run db:test
+npm run db:test:functions
 npm run db:types
 ```
 
@@ -121,11 +125,17 @@ npm run db:types
 - `InventoryProductPanel` edita costo, precio y mínimo con un `update`, y las existencias **solo** con `adjust_stock` y un motivo (cuatro presets más texto libre). El margen y el valor se recalculan en vivo como estimado antes de guardar; el dato de verdad lo devuelve la vista al refrescar.
 - `app/app/composables/useMoney.ts` formatea montos y porcentajes con `Intl.NumberFormat` según la moneda del negocio activo, sin decimales, y muestra `—` cuando el margen es indefinido.
 - `ui/Drawer.vue` acepta `position`, `panelClass` y `header`; con `header` deja de usarse el modo sin relleno de la navegación móvil. El inventario lo abre a la derecha.
+- `supabase/functions/import-products/` es la primera Edge Function del proyecto. El contenedor `supabase_edge_runtime_cashi` que levanta `supabase start` ya la sirve en `http://127.0.0.1:54321/functions/v1/import-products`; **no hace falta `supabase functions serve`** aparte, y el runtime recarga en caliente al editar el archivo (si una prueba falla justo tras editar, puede estar usando el worker anterior: repítela).
+- La función corre con la sesión de quien llama (cabecera `Authorization` reenviada al cliente), no con la `service_role`, así que la RLS del negocio sigue aplicando.
+- `supabase/functions/_shared/csv.ts` es lógica pura sin APIs de Deno: parser RFC 4180 con comillas escapadas, detección de separador (coma, punto y coma o tabulador), alias de encabezados en español e inglés y `parseAmount`, que acepta `12.000` pero rechaza decimales en vez de redondearlos.
+- La escritura no está en la función sino en la RPC `import_products(p_business, p_rows jsonb)`: una sola transacción que resuelve categorías y proveedores por nombre, los crea si faltan y hace match de SKU sin distinguir mayúsculas.
+- **Por qué la RPC y no un upsert desde la función**: tras S2.2 el rol `authenticated` no tiene `update` sobre todas las columnas de `product`, y el upsert masivo de PostgREST incluye `business_id` en el `SET`, así que respondía `permission denied for table product`.
+- El stock solo se fija al crear un producto. Si el CSV trae existencias para un SKU que ya existe se ignoran y se cuentan en `stock_ignored`, porque cambiarlas exige `adjust_stock`.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar F2.1:
+Validaciones vigentes al completar S2.3:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -136,23 +146,19 @@ Validaciones vigentes al completar F2.1:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 116 pruebas SQL (53 iniciales + 39 de `product_stats` + 24 de `adjust_stock`) y 100 códigos concurrentes únicos.
+- `npm run db:test`: 134 pruebas SQL (53 iniciales + 39 de `product_stats` + 24 de `adjust_stock` + 18 de `import_products`), 100 códigos concurrentes únicos y las 21 comprobaciones de la Edge Function.
 - `supabase db lint`: «No schema errors found».
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S2.3
+## Próximo trabajo: F2.2
 
-Edge Function `import-products` para carga masiva por CSV:
+Alta de producto e importación desde la interfaz, lo último de la Fase 2:
 
-1. Validar por fila y hacer upsert por SKU dentro del negocio.
-2. Devolver `{created, updated, errors[]}` con el número de fila en cada error.
-3. Validar sesión y membresía dentro de la función; la `service_role` vive solo ahí.
-4. Es la dependencia de F2.2 (alta de producto e import), la única pieza que le falta a la Fase 2.
-
-Pendiente relacionado: F2.2 añadirá el alta de producto, que hoy no existe en la
-interfaz. El Inventario solo edita productos ya creados.
+1. Modal de alta con SKU, nombre, categoría, proveedor, costo, precio, stock inicial y mínimo. Hoy **no existe forma de crear un producto desde la app**; el Inventario solo edita los que ya están.
+2. Flujo de CSV que llame a `import-products` con `supabase.functions.invoke` y muestre el resumen: creados, actualizados, stock ignorado y la lista de errores con su número de fila.
+3. Conviene ofrecer una plantilla CSV descargable con los encabezados que la función acepta.
 
 ## Diseño pendiente
 
