@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F4.1 y su revisión funcional. **La Fase 3 está terminada** y la Fase 4 ya tiene la vista de Gastos y el backend de Fiados.
+Actualizado: 26 de agosto de 2026, después de completar F4.2. **Las Fases 3 y 4 están terminadas**; Gastos y Fiados ya tienen backend e interfaz funcional.
 
 ## Preferencias del usuario
 
@@ -46,8 +46,9 @@ Completado y versionado:
 | S4.2 | `50eb766` | Vista de deuda y abonos seguros de Fiados |
 | F4.1 | `8907ccc` | Vista Gastos con resumen, filtros, alta y versión móvil |
 | Mejora F4.1/F2.1 | `98e68bd` | Edición/borrado de gastos y valoración total del inventario |
+| F4.2 | `c73d172` | Vista Fiados con resumen, vencidos, lista adaptable y abonos |
 
-La siguiente tarea del `PLAN.md` es **F4.2 · Vista Fiados**.
+La siguiente tarea del `PLAN.md` es **S5.1 · Órdenes de compra**.
 
 ## Qué está construido y qué no
 
@@ -56,18 +57,18 @@ Vistas conectadas a datos reales:
 - `/login`, `/registro`, `/recuperar`, `/nueva-contrasena`, `/onboarding`
 - `/inventario` — valoración total, listado, filtros, alta, import CSV y panel de edición
 - `/caja` — buscador, frecuentes, carrito y cobro
+- `/fiados` — cartera total, vencidos, deudores y registro de abonos
 - `/gastos` — resumen mensual, distribución, filtros, alta, edición y borrado
 - `/ajustes` — negocio, logo, cuenta y contraseña
 
 Todavía son `PagePlaceholder`, sin datos:
 
-- `/` (Resumen), `/cotizaciones`, `/fiados`, `/compras`, `/reportes`
+- `/` (Resumen), `/cotizaciones`, `/compras`, `/reportes`
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
-(S3.2), `period_range` (S7.1), `v_credits`
-y `register_payment` (S4.2). La Caja registra ventas pero no hay pantalla para
+(S3.2) y `period_range` (S7.1). La Caja registra ventas pero no hay pantalla para
 verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
-la Fase 8. `/fiados` sigue provisional hasta F4.2.
+la Fase 8.
 
 ## Convenciones de trabajo
 
@@ -109,6 +110,7 @@ npm --prefix app run smoke
 npm run app:test:auth
 npm run app:test:business-switcher
 npm run app:test:caja
+npm run app:test:credits
 npm run app:test:expenses
 npm run app:test:inventory
 npm run app:test:inventory-import
@@ -226,15 +228,23 @@ npm run db:types
 - `register_payment(p_business, p_customer, p_amount, p_method)` acepta `CASH`, `TRANSFER` o `CARD`, bloquea la fila del cliente, guarda el abono y devuelve `previous_debt` y `debt`. Dos llamadas simultáneas no pueden sobrepagar.
 - `authenticated` conserva lectura sobre `payment`, pero ya no puede insertar, editar ni borrar abonos directamente; toda escritura pasa por `register_payment` para mantener el historial y el saldo.
 - Triggers privados rechazan cualquier operación que deje pagos mayores que las ventas fiadas confirmadas. En particular, `void_sale` no permite anular una venta ya pagada si eso dejaría deuda negativa; la venta permanece confirmada.
+- `credit_dashboard_summary(p_business, p_from, p_to)` calcula en PostgreSQL el total por cobrar, número de deudores, vencidos, deuda vencida y abonos del periodo. No suma la página cargada en el navegador, así que el resultado no depende de límites de PostgREST.
+- `/fiados` obtiene el mes local mediante `period_range`, carga `v_credits` y muestra tres tarjetas: Por cobrar, Clientes con deuda y Abonado este mes. Los vencidos aparecen primero y cada fila conserva teléfono, comprado, deuda, estado y último abono.
+- En escritorio los deudores usan `UiDataTable`; por debajo de 760 px cambian a `UiCardList` con una acción de Abonar de ancho completo y objetivos táctiles de al menos 44 px.
+- `CreditsCreditPaymentModal` valida monto entero positivo y método (`CASH`, `TRANSFER`, `CARD`). **Abonar todo** precarga la deuda exacta; el servidor vuelve a validar el saldo mediante `register_payment` para impedir sobrepagos concurrentes.
+- Tras un abono se recargan lista y resumen en paralelo. Si el saldo llega a cero, el cliente desaparece porque `v_credits` solo devuelve deuda positiva.
+- El seed incluye tres fiados demo: $790.000 por cobrar, un cliente vencido con $350.000 y un abono de $100.000 en el mes local. Sus códigos `DEMO-CRED-*` permiten que las pruebas de Caja sigan aislando sus ventas `FAC-*`.
+- `app/tests/credits-flow.mjs` comprueba los totales iniciales, el estado vencido, la precarga exacta de $280.000, persistencia del abono con tarjeta, salida del cliente, reducción exacta a $510.000 y actualización del abono mensual a $380.000. También valida tarjetas móviles y limpia su pago al terminar.
 
 ## Última validación
 
-Validaciones vigentes al completar F4.1:
+Validaciones vigentes al completar F4.2:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. En móvil comprueba que la barra de cobro queda anclada abajo, que el botón de escritorio no está visible y que ningún control baja de 44 px. Borra las ventas y restaura el stock del seed.
+- `npm run app:test:credits`: resumen de $790.000, tres deudores, un vencido, abono completo de $280.000, desaparición del cliente, cartera final de $510.000, actualización del total mensual y versión móvil sin controles menores de 44 px. No deja fixtures.
 - `npm run app:test:expenses`: total mensual y distribución por categoría, filtro de categoría, rango de un solo día, alta y edición real con Otro y recurrente, borrado confirmado, persistencia en PostgreSQL, actualización inmediata del resumen y tarjetas móviles. No deja fixtures.
 - `npm run app:test:inventory-import`: alta manual con categoría y proveedor nuevos, aviso de SKU repetido, importación con una fila válida y una con decimales, y comprobación en PostgreSQL de lo guardado. Limpia sus fixtures al terminar.
 - `npm run app:test:inventory`: valoración completa al costo independiente de los filtros, listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, actualización del total al ajustar existencias, movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
@@ -243,21 +253,20 @@ Validaciones vigentes al completar F4.1:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 316 pruebas SQL, incluidas 10 de valoración global y aislamiento del inventario; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos sobre el mismo cliente y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 327 pruebas SQL, incluidas 11 del resumen de Fiados; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos sobre el mismo cliente y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F4.2
+## Próximo trabajo: S5.1
 
-Vista Fiados:
+Órdenes de compra:
 
-1. Tarjetas de resumen con el total por cobrar y los vencidos.
-2. Lista de deudores basada en `v_credits`, con estado y datos de contacto.
-3. Modal conectado a `register_payment` con monto y método de pago.
-4. Acción **Abonar todo** que precarga exactamente la deuda actual.
-5. Aceptación: después de abonar todo, el cliente desaparece de la lista y el total por cobrar baja exactamente el mismo monto.
+1. Implementar el CRUD de órdenes y sus líneas sobre el esquema existente.
+2. Crear `receive_purchase_order` usando `adjust_stock` como antecedente de las reglas de movimiento.
+3. Hacer la recepción idempotente: recibir dos veces la misma orden no puede duplicar existencias ni movimientos.
+4. Mantener RLS, aislamiento entre negocios y pruebas de concurrencia/segunda recepción antes de conectar la vista F5.1.
 
 ## Fuentes de diseño disponibles
 
