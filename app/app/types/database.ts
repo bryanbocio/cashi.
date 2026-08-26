@@ -276,6 +276,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_credits"
+            referencedColumns: ["customer_id"]
+          },
+          {
             foreignKeyName: "payment_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
@@ -540,6 +547,13 @@ export type Database = {
             referencedRelation: "customer"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "quote_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_credits"
+            referencedColumns: ["customer_id"]
+          },
         ]
       }
       quote_line: {
@@ -663,6 +677,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customer"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_credits"
+            referencedColumns: ["customer_id"]
           },
           {
             foreignKeyName: "sale_quote_id_fkey"
@@ -839,6 +860,32 @@ export type Database = {
       }
     }
     Views: {
+      v_credits: {
+        Row: {
+          business_id: string | null
+          credit_sales_count: number | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          days_overdue: number | null
+          debt: number | null
+          is_overdue: boolean | null
+          last_credit_at: string | null
+          last_payment_at: string | null
+          oldest_due_date: string | null
+          total_credit: number | null
+          total_paid: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_product_stats: {
         Row: {
           active: boolean | null
@@ -921,6 +968,13 @@ export type Database = {
             referencedRelation: "customer"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sale_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_credits"
+            referencedColumns: ["customer_id"]
+          },
         ]
       }
     }
@@ -1000,6 +1054,15 @@ export type Database = {
           previous_label: string
           to: string
         }[]
+      }
+      register_payment: {
+        Args: {
+          p_amount: number
+          p_business: string
+          p_customer: string
+          p_method: string
+        }
+        Returns: Json
       }
       search_products: {
         Args: { p_business: string; p_limit?: number; p_q: string }
