@@ -55,6 +55,16 @@ async function waitForStoredBusiness(page, businessId) {
   })
 }
 
+async function waitForText(locator, expected, description) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const text = await locator.innerText().catch(() => null)
+    if (text && text.includes(expected)) return
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  const actual = await locator.innerText().catch(() => 'sin contenido')
+  throw new Error(`${description}: esperaba «${expected}» y encontré «${actual}».`)
+}
+
 function cleanupBusiness(businessId) {
   if (!/^[0-9a-f-]{36}$/i.test(businessId)) return
   const query = `
@@ -100,7 +110,7 @@ try {
     throw new Error('El segundo negocio no quedó activo después del onboarding.')
   }
 
-  await page.goto(`${baseUrl}/inventario`, { waitUntil: 'networkidle' })
+  await page.goto(`${baseUrl}/gastos`, { waitUntil: 'networkidle' })
   await page.getByTestId('active-business-name').getByText(secondBusinessName, { exact: true }).waitFor()
   await openSwitcher(page)
 
@@ -120,6 +130,21 @@ try {
   await page.getByRole('button', { name: `Cambiar a ${secondBusinessName}` }).click()
   await waitForStoredBusiness(page, createdBusinessId)
   await page.getByTestId('active-business-name').getByText(secondBusinessName, { exact: true }).waitFor()
+  await page.locator('[data-testid="business-switcher-menu"]:visible').waitFor({ state: 'hidden' })
+
+  await page.goto(`${baseUrl}/inventario`, { waitUntil: 'networkidle' })
+  await waitForText(page.locator('[data-testid="inventory-count"]'), '0 productos', 'Inventario del negocio nuevo')
+  await page.getByText('Este negocio todavía no tiene productos.').first().waitFor()
+
+  await openSwitcher(page)
+  await page.getByRole('button', { name: 'Cambiar a Cashi Demo' }).click()
+  await waitForStoredBusiness(page, demoBusinessId)
+  await page.goto(`${baseUrl}/inventario`, { waitUntil: 'networkidle' })
+  await waitForText(page.locator('[data-testid="inventory-count"]'), '9 productos', 'Inventario del negocio demo')
+
+  await openSwitcher(page)
+  await page.getByRole('button', { name: `Cambiar a ${secondBusinessName}` }).click()
+  await waitForStoredBusiness(page, createdBusinessId)
   await page.locator('[data-testid="business-switcher-menu"]:visible').waitFor({ state: 'hidden' })
 
   await page.setViewportSize({ width: 390, height: 844 })

@@ -41,6 +41,7 @@ export default defineNuxtConfig({
         'DataTable',
         'Dialog',
         'Drawer',
+        'InputNumber',
         'InputText',
         'Message',
         'Popover',

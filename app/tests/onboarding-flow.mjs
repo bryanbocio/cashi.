@@ -132,7 +132,7 @@ try {
   await page.getByRole('button', { name: 'Crear negocio' }).click()
 
   await page.waitForURL(url => url.pathname === '/')
-  await page.getByText(businessName, { exact: true }).waitFor()
+  await page.getByTestId('active-business-name').getByText(businessName, { exact: true }).waitFor()
 
   const businessId = await page.evaluate(() => localStorage.getItem('cashi.active-business-id'))
   if (!businessId) throw new Error('El negocio creado no quedó activo en el navegador.')
