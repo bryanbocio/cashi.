@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar S7.1 y S4.1. **La Fase 3 está terminada** y la Fase 4 ya tiene listo el backend de Gastos.
+Actualizado: 26 de agosto de 2026, después de completar S4.2. **La Fase 3 está terminada** y la Fase 4 ya tiene listo el backend de Gastos y Fiados.
 
 ## Preferencias del usuario
 
@@ -43,8 +43,9 @@ Completado y versionado:
 | F3.2 | `a33a884` | Barra fija de cobro en móvil y área táctil de 44 px |
 | S7.1 | `8d7088a` | Rangos de calendario por zona horaria del negocio |
 | S4.1 | `fc6b530` | CRUD, filtros y distribución por categoría de Gastos |
+| S4.2 | `50eb766` | Vista de deuda y abonos seguros de Fiados |
 
-La siguiente tarea del `PLAN.md` es **S4.2 · Fiados**. Después siguen F4.1 (interfaz de Gastos) y F4.2 (interfaz de Fiados).
+La siguiente tarea del `PLAN.md` es **F4.1 · Vista Gastos**. Después sigue F4.2 (interfaz de Fiados).
 
 ## Qué está construido y qué no
 
@@ -60,10 +61,10 @@ Todavía son `PagePlaceholder`, sin datos:
 - `/` (Resumen), `/cotizaciones`, `/fiados`, `/gastos`, `/compras`, `/reportes`
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
-(S3.2), `period_range` (S7.1) y el CRUD/agregado de Gastos (S4.1). La
-Caja registra ventas pero no hay pantalla para verlas ni anularlas; eso llega
-con F7.3 (Reportes) y el visor de documentos de la Fase 8. `/gastos` sigue
-siendo provisional hasta F4.1.
+(S3.2), `period_range` (S7.1), el CRUD/agregado de Gastos (S4.1), `v_credits`
+y `register_payment` (S4.2). La Caja registra ventas pero no hay pantalla para
+verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
+la Fase 8. `/gastos` y `/fiados` siguen provisionales hasta F4.1 y F4.2.
 
 ## Convenciones de trabajo
 
@@ -206,10 +207,17 @@ npm run db:types
 - El CRUD de Gastos se hace directamente sobre `expense` y queda protegido por las políticas RLS existentes. Un trigger recorta espacios de `concept` y `category` antes de guardar.
 - `expense_category_totals(p_business, p_from, p_to, p_category)` devuelve `category`, `total_amount`, `expense_count` y `share_pct`. Usa rango local de fechas `[from, to)`; el filtro de categoría es opcional y no distingue mayúsculas, pero el porcentaje siempre se calcula contra todo el rango.
 - Para F4.1, las categorías serán opciones predefinidas más **Otro**. Al elegir Otro se debe habilitar el texto del concepto del gasto; no convertir `expense.category` en enum ni en FK sin consultarlo nuevamente.
+- `v_credits` devuelve solo clientes con deuda positiva: `customer_id`, `business_id`, nombre/teléfono, `total_credit`, `total_paid`, `debt`, cantidad de ventas fiadas, vencimiento pendiente más antiguo, bandera/días de mora y últimas fechas de venta y abono.
+- La deuda suma únicamente ventas `CREDIT` con estado `CONFIRMED`; las ventas anuladas y las ventas por otros métodos no cuentan. Un cliente totalmente pagado desaparece de la vista.
+- Los abonos generales del cliente cubren primero las ventas con `due_date` más antiguo. Así, una factura vieja ya cubierta no mantiene al cliente marcado como vencido por error. Las ventas sin vencimiento quedan al final y nunca se marcan vencidas por sí mismas.
+- El vencimiento compara `due_date` con la fecha actual en `business.timezone`, no con UTC. La prueba fija el mismo instante para Kiritimati y Honolulu y obtiene resultados distintos según el día local.
+- `register_payment(p_business, p_customer, p_amount, p_method)` acepta `CASH`, `TRANSFER` o `CARD`, bloquea la fila del cliente, guarda el abono y devuelve `previous_debt` y `debt`. Dos llamadas simultáneas no pueden sobrepagar.
+- `authenticated` conserva lectura sobre `payment`, pero ya no puede insertar, editar ni borrar abonos directamente; toda escritura pasa por `register_payment` para mantener el historial y el saldo.
+- Triggers privados rechazan cualquier operación que deje pagos mayores que las ventas fiadas confirmadas. En particular, `void_sale` no permite anular una venta ya pagada si eso dejaría deuda negativa; la venta permanece confirmada.
 
 ## Última validación
 
-Validaciones vigentes al completar S4.1:
+Validaciones vigentes al completar S4.2:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -222,20 +230,21 @@ Validaciones vigentes al completar S4.1:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 267 pruebas SQL, 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 306 pruebas SQL, 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos sobre el mismo cliente y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S4.2
+## Próximo trabajo: F4.1
 
-Fiados, que completa el backend de la Fase 4:
+Vista Gastos:
 
-1. Vista `v_credits` aislada por negocio.
-2. RPC `register_payment` y cálculo de vencidos por `due_date` en la zona horaria del negocio.
-3. Un abono mayor a la deuda debe fallar y la deuda nunca puede quedar negativa.
-4. Tras S4.2 siguen F4.1 (Vista Gastos) y F4.2 (Vista Fiados). F4.1 debe respetar la decisión de categorías predefinidas + Otro descrita arriba.
+1. Total del mes y distribución por categoría usando `expense_category_totals`.
+2. Lista con filtros de rango y categoría; tabla en escritorio y tarjetas en móvil.
+3. Modal de alta conectado al CRUD de `expense`.
+4. Categorías predefinidas más **Otro**; al elegir Otro se habilita el concepto escrito por el usuario.
+5. Los archivos visuales citados por el `PLAN.md` siguen ausentes. F4.1 ya es una decisión visual importante, así que conviene pedirlos antes de construirla.
 
 ## Diseño pendiente
 
