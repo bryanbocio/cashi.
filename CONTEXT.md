@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar S2.1.
+Actualizado: 26 de agosto de 2026, después de completar S2.2.
 
 ## Preferencias del usuario
 
@@ -29,8 +29,9 @@ Completado y versionado:
 | F1.4 | `d17e319` | Selector de negocio, cambio de contexto y cierre de sesión |
 | F1.5 | `70741ab` | Ajustes de negocio, logo privado, cuenta y contraseña |
 | S2.1 | `62d45c7` | Vista `v_product_stats`, filtros de inventario e índices |
+| S2.2 | `64736d2` | RPC `adjust_stock` y cierre de escritura directa del stock |
 
-La siguiente tarea del `PLAN.md` es **F2.1 · Vista Inventario** (S2.2 y S2.3 también quedan desbloqueadas).
+La siguiente tarea del `PLAN.md` es **F2.1 · Vista Inventario**. S2.3 (import CSV) sigue pendiente y solo bloquea F2.2.
 
 ## Stack instalado
 
@@ -102,11 +103,18 @@ npm run db:types
 - Los filtros del inventario se aplican desde el cliente con PostgREST: `or=(name.ilike.*q*,sku.ilike.*q*)` para la búsqueda, `eq` para categoría y proveedor, `is_low_stock=eq.true` e `is_thin_margin=eq.true` para las banderas. Hay índices `product(business_id, category_id)` y `product(business_id, supplier_id)`.
 - El seed incluye `ACC-004 · Bolsa de regalo` (16 % de margen) para que el filtro de margen bajo tenga datos reales.
 - No se añadió índice trigram: con el catálogo acotado por `business_id` el `ilike` es barato. Reevaluar en S3.3 si la búsqueda de caja lo necesita.
+- `adjust_stock(p_product, p_delta, p_reason)` (migración `20260826160000_adjust_stock.sql`) corrige existencias y escribe el movimiento `ADJUST` en la misma transacción. Devuelve `jsonb` con `product_id`, `previous_stock`, `stock`, `qty_delta`, `reason` y `movement_id`.
+- La suma se resuelve dentro del `update` (`stock = stock + p_delta`), no con una lectura previa, para que dos ajustes simultáneos no se pisen.
+- El motivo es **obligatorio**: sin él el histórico de movimientos no sirve para auditar. La UI de F2.1 debería ofrecer motivos rápidos (conteo físico, merma, devolución, corrección).
+- El stock resultante puede quedar negativo, coherente con que la app tolera vender sin existencias.
+- Se cerró la puerta de atrás: `authenticated` ya no puede hacer `update` de `product.stock` (conserva `name`, `sku`, `category_id`, `supplier_id`, `cost`, `price`, `min_stock`, `active`) ni escribir en `stock_movement`. Al intentarlo PostgREST responde `403 / 42501`. Si una tarea futura necesita mover stock, va por una función `security definer`, nunca por un update.
+- `stock_movement` ganó la columna `reason`, nula en los movimientos que generen ventas y compras.
+- Los mensajes de error de las RPC llegan al usuario tal cual mediante `toUserMessage` de `app/app/utils/errors.ts`, salvo `42501`, que se reemplaza por el texto genérico de permisos.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar S2.1:
+Validaciones vigentes al completar S2.2:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -116,9 +124,10 @@ Validaciones vigentes al completar S2.1:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 92 pruebas SQL (53 previas + 39 de `product_stats`) y 100 códigos concurrentes únicos.
+- `npm run db:test`: 116 pruebas SQL (53 iniciales + 39 de `product_stats` + 24 de `adjust_stock`) y 100 códigos concurrentes únicos.
 - `supabase db lint`: «No schema errors found».
-- Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
+- Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
+- Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
 ## Próximo trabajo: F2.1
@@ -127,10 +136,13 @@ Implementar la vista Inventario sobre `v_product_stats`:
 
 1. Tabla en escritorio y tarjetas en móvil, reutilizando `ui/DataTable.vue` y `ui/CardList.vue`.
 2. Buscador y filtros Todos / Stock bajo / Margen bajo con las consultas PostgREST ya documentadas.
-3. Panel lateral de edición (costo, precio, stock, mínimo) con margen y valor en vivo, que guarda y refresca sin recargar.
+3. Panel lateral de edición con costo, precio y mínimo por `update` directo, y el stock **solo** por `adjust_stock` con su motivo; margen y valor calculados en vivo.
 4. Destacar la fila de stock bajo con su aviso.
 
-Nota para la implementación: los tipos generados declaran todas las columnas de la vista como opcionales (`| null`), porque Postgres no infiere `not null` en vistas. La UI debe manejarlo en vez de forzar el tipo.
+Notas para la implementación:
+
+- Los tipos generados declaran todas las columnas de la vista como opcionales (`| null`), porque Postgres no infiere `not null` en vistas. La UI debe manejarlo en vez de forzar el tipo.
+- El cálculo en vivo del panel es la única excepción permitida al «la regla vive en Postgres»: es un estimado antes de guardar, igual que el del carrito.
 
 ## Diseño pendiente
 
