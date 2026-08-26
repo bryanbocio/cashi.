@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F2.2. **La Fase 2 está terminada.**
+Actualizado: 26 de agosto de 2026, después de completar S3.1. La Fase 2 está terminada y la Fase 3 arrancó.
 
 ## Preferencias del usuario
 
@@ -35,8 +35,9 @@ Completado y versionado:
 | — | `3b0cf81` | Responsive del Inventario entre 760 y 1120 px |
 | S2.3 | `673eb1e` | Edge Function `import-products` y RPC `import_products` |
 | F2.2 | `e401a70` | Alta de producto e importación CSV desde el Inventario |
+| S3.1 | `f9e7a02` | RPC `create_sale` con costo congelado y orden de bloqueo |
 
-La siguiente tarea del `PLAN.md` es **S3.1 · `create_sale`**, que abre la Fase 3 (Caja y ventas). También están libres S4.1 (gastos) y S7.1 (`period_range`), que no dependen de ventas.
+La siguiente tarea del `PLAN.md` es **S3.2 · `void_sale` y `v_sale_detail`**. También están libres S3.3 (búsqueda de caja), S4.1 (gastos) y S7.1 (`period_range`).
 
 ## Stack instalado
 
@@ -73,6 +74,7 @@ npm run app:test:onboarding
 npm run app:test:settings
 npm run app:test:session-business
 npm run db:test
+npm run db:test:sales
 npm run db:test:functions
 npm run db:types
 ```
@@ -137,11 +139,18 @@ npm run db:types
 - Categoría y proveedor del alta son `PrimeSelect` **editables**: se puede elegir uno existente o escribir uno nuevo, que se crea al guardar. Se hizo así porque no hay ninguna otra pantalla para crear categorías, y un negocio nuevo solo trae `Perfumería` y `Tienda de ropa` de `create_business`.
 - `InventoryImportModal` llama a la función con `client.functions.invoke`. Cuando la función responde con error hay que leer `error.context.json()`: el mensaje del `FunctionsHttpError` por sí solo no dice nada útil.
 - El resumen del import muestra creados, actualizados, filas con error (fila, SKU y motivo) y un aviso cuando se ignoraron existencias. La plantilla descargable lleva BOM para que Excel no rompa los acentos.
+- `create_sale(p_business, p_customer, p_method, p_discount, p_due, p_lines)` recibe `p_lines` como `[{product_id, qty}]`. **El precio y el costo los resuelve el servidor**, nunca vienen del cliente, y quedan congelados en `sale_line` junto al nombre y la categoría del momento.
+- El stock se descuenta recorriendo los productos **ordenados por id**. Ese orden es lo único que evita interbloqueos: se comprobó que sin él 33 de 40 transacciones simultáneas mueren con `40P01`, y con él ninguna. Si alguna RPC futura toca varios productos, debe hacerlo en el mismo orden.
+- Las líneas repetidas del mismo producto se suman en una sola: un carrito no tiene dos renglones del mismo artículo.
+- Vender sin existencias está permitido y puede dejar el stock negativo; avisar es tarea de la interfaz.
+- `p_due` solo se guarda en las ventas `CREDIT`; en las demás se descarta.
+- **El descuento resta de la ganancia bruta** (decisión tomada en S3.1, ya reflejada en la regla 2 del `PLAN.md`). Las métricas de la Fase 7 tienen que restarlo igual o las cifras no cuadrarán.
+- Las pruebas que cuentan movimientos o ventas se acotan a sus propios fixtures: contar totales del negocio demo las vuelve frágiles ante cualquier ajuste hecho a mano en la base local.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar F2.2:
+Validaciones vigentes al completar S3.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -153,24 +162,20 @@ Validaciones vigentes al completar F2.2:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 134 pruebas SQL (53 iniciales + 39 de `product_stats` + 24 de `adjust_stock` + 18 de `import_products`), 100 códigos concurrentes únicos y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 165 pruebas SQL (las anteriores más 31 de `create_sale`), 100 códigos concurrentes únicos, 40 ventas concurrentes sobre dos productos compartidos y las 21 comprobaciones de la Edge Function.
 - `supabase db lint`: «No schema errors found».
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S3.1
+## Próximo trabajo: S3.2
 
-`create_sale`, la RPC central de la Fase 3 y la más delicada del plan:
+`void_sale` y los listados de venta:
 
-1. Resuelve precio y costo actuales, inserta venta y líneas, descuenta stock, escribe movimientos y genera el código con `next_doc_code`.
-2. **Costo congelado**: cada línea guarda `unit_price` y `unit_cost` del instante de la venta. Cambiar el costo después no puede alterar la ganancia histórica; el plan pide una prueba explícita de esto.
-3. `CREDIT` sin cliente debe fallar con mensaje claro.
-4. Dos llamadas concurrentes no pueden dejar el stock inconsistente.
-
-Nota: el stock se descuenta dentro de la RPC, que es `security definer`, así que
-la restricción de S2.2 sobre `product.stock` no estorba. Debe escribir su
-movimiento `SALE`, igual que `adjust_stock` escribe el suyo.
+1. `void_sale(p_sale)` marca la venta `VOID`, devuelve el stock y escribe movimientos `RETURN`. Debe ser idempotente: anular dos veces no puede devolver el stock dos veces.
+2. Vista `v_sale_detail` con la venta, su ganancia y el nombre del cliente, con `security_invoker` y su `grant select` propio, como `v_product_stats`.
+3. La ganancia de la vista tiene que restar el descuento, igual que `create_sale`.
+4. Anular debe recorrer los productos ordenados por id, por la misma razón que `create_sale`.
 
 ## Diseño pendiente
 
