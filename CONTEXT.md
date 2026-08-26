@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F4.1. **La Fase 3 está terminada** y la Fase 4 ya tiene la vista de Gastos y el backend de Fiados.
+Actualizado: 26 de agosto de 2026, después de completar F4.1 y su revisión funcional. **La Fase 3 está terminada** y la Fase 4 ya tiene la vista de Gastos y el backend de Fiados.
 
 ## Preferencias del usuario
 
@@ -45,6 +45,7 @@ Completado y versionado:
 | S4.1 | `fc6b530` | CRUD, filtros y distribución por categoría de Gastos |
 | S4.2 | `50eb766` | Vista de deuda y abonos seguros de Fiados |
 | F4.1 | `8907ccc` | Vista Gastos con resumen, filtros, alta y versión móvil |
+| Mejora F4.1/F2.1 | `98e68bd` | Edición/borrado de gastos y valoración total del inventario |
 
 La siguiente tarea del `PLAN.md` es **F4.2 · Vista Fiados**.
 
@@ -53,9 +54,9 @@ La siguiente tarea del `PLAN.md` es **F4.2 · Vista Fiados**.
 Vistas conectadas a datos reales:
 
 - `/login`, `/registro`, `/recuperar`, `/nueva-contrasena`, `/onboarding`
-- `/inventario` — listado, filtros, alta, import CSV y panel de edición
+- `/inventario` — valoración total, listado, filtros, alta, import CSV y panel de edición
 - `/caja` — buscador, frecuentes, carrito y cobro
-- `/gastos` — resumen mensual, distribución, filtros y alta
+- `/gastos` — resumen mensual, distribución, filtros, alta, edición y borrado
 - `/ajustes` — negocio, logo, cuenta y contraseña
 
 Todavía son `PagePlaceholder`, sin datos:
@@ -151,6 +152,7 @@ npm run db:types
 - `app/tests/business-switcher.mjs` crea temporalmente un segundo negocio, alterna ambos desde escritorio y móvil, comprueba el contexto visible y el cierre de sesión, y elimina el fixture al finalizar.
 - `app/tests/settings-flow.mjs` registra un usuario temporal, crea y edita su negocio, sube un PNG real, actualiza el perfil y la contraseña, vuelve a iniciar sesión y elimina todos sus fixtures.
 - `v_product_stats` (migración `20260826150000_product_stats.sql`) devuelve cada producto con `margin_amount`, `margin_pct`, `inventory_value`, `retail_value`, `is_low_stock` e `is_thin_margin`, más el nombre de su categoría y proveedor.
+- `v_inventory_summary` agrega todos los productos activos del negocio y devuelve cantidad, unidades, valor al costo y valor potencial de venta. Usa `security_invoker`, por lo que hereda la RLS de `product`; la interfaz muestra `inventory_value = sum(cost × stock)` aunque la lista esté filtrada.
 - La vista se declara `with (security_invoker = true)`; sin esa opción correría como su dueño y expondría el catálogo de todos los negocios. Los `grant` iniciales usaron `on all tables`, así que la vista necesita su propio `grant select ... to authenticated`. Ambas cosas están cubiertas por pruebas.
 - Reglas aplicadas: stock bajo es `stock < min_stock` estricto (4/4 no es bajo); el margen es `(price − cost) / price` con dos decimales y `null` cuando `price = 0`; margen estrecho es margen bruto por debajo del **20 %**, y también un producto con costo pero sin precio.
 - Los filtros del inventario se aplican desde el cliente con PostgREST: `or=(name.ilike.*q*,sku.ilike.*q*)` para la búsqueda, `eq` para categoría y proveedor, `is_low_stock=eq.true` e `is_thin_margin=eq.true` para las banderas. Hay índices `product(business_id, category_id)` y `product(business_id, supplier_id)`.
@@ -216,6 +218,7 @@ npm run db:types
 - Las categorías predefinidas viven en `app/app/utils/expenses.ts`: Arriendo, Servicios, Publicidad, Nómina, Insumos, Domicilios, Transporte, Impuestos y Otro. El concepto se conserva para todas las categorías y **Otro** muestra ayuda específica para texto libre.
 - El seed incluye cinco gastos del mes local del negocio demo, dos de ellos recurrentes. Las fechas se calculan al ejecutar el seed para que la pantalla nunca nazca vacía por el paso del tiempo.
 - `app/tests/expenses-flow.mjs` comprueba el total y distribución, filtros combinables, alta de Otro, fecha predeterminada según la zona del negocio, persistencia en PostgreSQL y tarjetas móviles con objetivos táctiles de 44 px. El fixture creado se elimina al terminar.
+- El mismo modal de Gastos sirve para crear y editar, precargando categoría, concepto, monto, fecha y recurrencia. El borrado siempre pasa por un diálogo explícito de confirmación; ambas acciones refrescan lista y resumen en paralelo.
 - `v_credits` devuelve solo clientes con deuda positiva: `customer_id`, `business_id`, nombre/teléfono, `total_credit`, `total_paid`, `debt`, cantidad de ventas fiadas, vencimiento pendiente más antiguo, bandera/días de mora y últimas fechas de venta y abono.
 - La deuda suma únicamente ventas `CREDIT` con estado `CONFIRMED`; las ventas anuladas y las ventas por otros métodos no cuentan. Un cliente totalmente pagado desaparece de la vista.
 - Los abonos generales del cliente cubren primero las ventas con `due_date` más antiguo. Así, una factura vieja ya cubierta no mantiene al cliente marcado como vencido por error. Las ventas sin vencimiento quedan al final y nunca se marcan vencidas por sí mismas.
@@ -232,15 +235,15 @@ Validaciones vigentes al completar F4.1:
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. En móvil comprueba que la barra de cobro queda anclada abajo, que el botón de escritorio no está visible y que ningún control baja de 44 px. Borra las ventas y restaura el stock del seed.
-- `npm run app:test:expenses`: total mensual y distribución por categoría, filtro de categoría, rango de un solo día, alta real con Otro y recurrente, persistencia en PostgreSQL, actualización inmediata del resumen y tarjetas móviles. No deja fixtures.
+- `npm run app:test:expenses`: total mensual y distribución por categoría, filtro de categoría, rango de un solo día, alta y edición real con Otro y recurrente, borrado confirmado, persistencia en PostgreSQL, actualización inmediata del resumen y tarjetas móviles. No deja fixtures.
 - `npm run app:test:inventory-import`: alta manual con categoría y proveedor nuevos, aviso de SKU repetido, importación con una fila válida y una con decimales, y comprobación en PostgreSQL de lo guardado. Limpia sus fixtures al terminar.
-- `npm run app:test:inventory`: listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, ajuste de existencias con su movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
+- `npm run app:test:inventory`: valoración completa al costo independiente de los filtros, listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, actualización del total al ajustar existencias, movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
 - `npm run app:test:business-switcher`: dos negocios, contexto visible actualizado y, ya sobre el Inventario real, el negocio nuevo sin productos frente a los 9 del demo; versión móvil y cierre de sesión.
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 306 pruebas SQL, 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos sobre el mismo cliente y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 316 pruebas SQL, incluidas 10 de valoración global y aislamiento del inventario; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos sobre el mismo cliente y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
