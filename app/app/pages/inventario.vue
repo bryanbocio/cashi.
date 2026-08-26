@@ -35,7 +35,7 @@ const selectedId = ref<string | null>(null)
 
 const columns: DataTableColumn[] = [
   { key: 'name', label: 'Producto' },
-  { key: 'categoryName', label: 'Categoría' },
+  { key: 'categoryName', label: 'Categoría', hideOnNarrow: true },
   { key: 'cost', label: 'Costo', align: 'right', mono: true },
   { key: 'price', label: 'Precio', align: 'right', mono: true },
   { key: 'marginPct', label: 'Margen', align: 'right' },
@@ -121,16 +121,16 @@ function clearFilters() {
 </script>
 
 <template>
-  <section class="mx-auto w-full max-w-360 px-8 pt-7 pb-12 max-[759px]:px-4 max-[759px]:pt-5 min-[760px]:max-[1120px]:px-6">
+  <section class="mx-auto w-full max-w-360 px-8 pt-7 pb-12 max-[760px]:px-4 max-[760px]:pt-5 min-[760px]:max-[1120px]:px-6">
     <header class="mb-6.5">
       <p class="mb-2 text-[9.5px] font-semibold tracking-[.1em] text-subtle uppercase">Catálogo</p>
       <h1 class="mb-1.5 font-display text-[clamp(24px,2.4vw,34px)] leading-[1.12] font-bold tracking-[-.03em]">Inventario</h1>
       <p class="max-w-155 text-[13.5px] text-muted">Controla costos, precios, existencias y niveles mínimos de reposición.</p>
     </header>
 
-    <div class="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 max-[900px]:grid-cols-1">
-      <div class="grid grid-cols-3 gap-3 max-[900px]:grid-cols-1">
-        <div class="relative">
+    <div class="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 max-[1120px]:grid-cols-1">
+      <div class="grid grid-cols-3 gap-3 max-[1120px]:grid-cols-2 max-[760px]:grid-cols-1">
+        <div class="relative max-[1120px]:col-span-2 max-[760px]:col-span-1">
           <label for="inventory-search" class="mb-1.5 block text-[11px] font-semibold text-ink">Buscar</label>
           <IconSearch class="pointer-events-none absolute bottom-3 left-3 size-4 text-subtle" aria-hidden="true" />
           <PrimeInputText id="inventory-search" v-model="search" class="!pl-9" placeholder="Nombre o SKU" autocomplete="off" fluid />
@@ -144,7 +144,7 @@ function clearFilters() {
           <PrimeSelect id="inventory-supplier" v-model="supplierId" :options="suppliers" option-label="label" option-value="value" placeholder="Todos" show-clear fluid />
         </div>
       </div>
-      <UiSegmented v-model="stockFilter" :options="stockFilters" label="Filtrar productos" class="max-[900px]:[&_.p-selectbutton]:w-full" />
+      <UiSegmented v-model="stockFilter" :options="stockFilters" label="Filtrar productos" class="max-[760px]:[&_.p-selectbutton]:w-full" />
     </div>
 
     <div v-if="loading" class="rounded-[9px] border border-black/10 bg-panel p-6" aria-live="polite" aria-busy="true">
