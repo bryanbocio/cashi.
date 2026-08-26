@@ -12,8 +12,9 @@ insert into auth.users (
   '{"full_name":"Usuario Demo"}', now(), now(), '', '', '', ''
 );
 
-insert into public.profile (id, full_name, phone)
-values ('10000000-0000-0000-0000-000000000001', 'Usuario Demo', '3000000000');
+update public.profile
+set phone = '3000000000'
+where id = '10000000-0000-0000-0000-000000000001';
 
 insert into public.business (id, name, nit, phone, address, created_by)
 values (

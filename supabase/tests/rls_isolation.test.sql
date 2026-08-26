@@ -17,9 +17,6 @@ insert into auth.users (
   '', '', '', ''
 );
 
-insert into public.profile (id, full_name)
-values ('10000000-0000-0000-0000-000000000002', 'Usuario B');
-
 insert into public.business (id, name, created_by)
 values (
   '20000000-0000-0000-0000-000000000002', 'Negocio B',

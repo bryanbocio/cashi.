@@ -8,12 +8,15 @@
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
     "db:reset": "supabase db reset",
-    "db:test": "supabase test db"
+    "db:test": "npm run db:test:sql && npm run db:test:concurrency",
+    "db:test:sql": "supabase test db",
+    "db:test:concurrency": "node supabase/tests/next-doc-code.concurrent.cjs"
   },
   "keywords": [],
   "author": "",
   "license": "UNLICENSED",
   "devDependencies": {
+    "pg": "^8.23.0",
     "supabase": "^2.115.0"
   }
 }
