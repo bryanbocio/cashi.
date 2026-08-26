@@ -11,6 +11,7 @@ declare module 'vue' {
     PrimeButton: typeof import('primevue/button')['default']
     PrimeDrawer: typeof import('primevue/drawer')['default']
     PrimeInputText: typeof import('primevue/inputtext')['default']
+    PrimeMessage: typeof import('primevue/message')['default']
     PrimeSkeleton: typeof import('primevue/skeleton')['default']
     PrimeTag: typeof import('primevue/tag')['default']
     PrimeToast: typeof import('primevue/toast')['default']

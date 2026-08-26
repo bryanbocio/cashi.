@@ -32,6 +32,7 @@ de Supabase para Nuxt.
 npm run app:dev
 npm run app:typecheck
 npm run app:build
+npm run app:test:auth
 ```
 
 ## Reiniciar la base local
@@ -43,8 +44,7 @@ npm run db:reset
 ```
 
 El comando reconstruye la base desde las migraciones versionadas y ejecuta
-`supabase/seed.sql`. En S0.1 el seed está vacío; el esquema y los datos de prueba
-se incorporarán en S0.2.
+`supabase/seed.sql` con el negocio y los datos de demostración.
 
 ## Comandos útiles
 
@@ -58,5 +58,7 @@ npm run supabase:stop
 ```
 
 Supabase Studio queda disponible por defecto en `http://127.0.0.1:54323`.
+Los correos locales de confirmación y recuperación se consultan en Mailpit:
+`http://127.0.0.1:54324`.
 
 Después de cambiar el esquema, regenera el cliente tipado con `npm run db:types`.

@@ -14,7 +14,8 @@
     "db:types": "supabase gen types typescript --local --schema public > app/app/types/database.ts",
     "app:dev": "npm --prefix app run dev",
     "app:typecheck": "npm --prefix app run typecheck",
-    "app:build": "npm --prefix app run build"
+    "app:build": "npm --prefix app run build",
+    "app:test:auth": "npm --prefix app run test:auth"
   },
   "keywords": [],
   "author": "",

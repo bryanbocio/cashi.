@@ -59,7 +59,11 @@ try {
   for (const route of publicRoutes) {
     const response = await page.goto(`${baseUrl}${route}`, { waitUntil: 'networkidle' })
     if (!response?.ok()) throw new Error(`La ruta ${route} respondió ${response?.status()}.`)
-    await page.locator('h1').waitFor({ state: 'visible' })
+    try {
+      await page.locator('h1').waitFor({ state: 'visible' })
+    } catch (error) {
+      throw new Error(`La ruta ${route} no mostró su encabezado. Errores: ${browserErrors.join(' | ')}`, { cause: error })
+    }
   }
 
   const hydrationErrors = browserErrors.filter(message => /hydration|mismatch/i.test(message))

@@ -1,8 +1,8 @@
 import { useToast } from 'primevue/usetoast'
 import { toUserMessage } from '~/utils/errors'
 
-type SupabaseResult<T> = {
-  data: T | null
+type SupabaseResult = {
+  data: unknown
   error: unknown
 }
 
@@ -24,10 +24,10 @@ export function useSupabaseRequest() {
     })
   }
 
-  async function execute<T>(
-    request: PromiseLike<SupabaseResult<T>>,
+  async function execute<TResult extends SupabaseResult>(
+    request: PromiseLike<TResult>,
     options: RequestOptions = {},
-  ): Promise<T | null> {
+  ): Promise<TResult['data']> {
     try {
       const result = await request
       if (result.error) throw result.error
