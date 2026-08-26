@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar S3.3. Todo el backend de la Fase 3 está listo; falta la interfaz.
+Actualizado: 26 de agosto de 2026, después de completar F3.1. Ya se puede vender de punta a punta desde la aplicación.
 
 ## Preferencias del usuario
 
@@ -38,8 +38,9 @@ Completado y versionado:
 | S3.1 | `f9e7a02` | RPC `create_sale` con costo congelado y orden de bloqueo |
 | S3.2 | `9c782bd` | RPC `void_sale` idempotente y vista `v_sale_detail` |
 | S3.3 | `ff2840c` | `search_products` y `frequent_products` para la Caja |
+| F3.1 | `e260579` | Vista Caja: buscador, carrito con margen y cobro |
 
-La siguiente tarea del `PLAN.md` es **F3.1 · Vista Caja**, con todo su backend ya disponible. También están libres S4.1 (gastos) y S7.1 (`period_range`).
+La siguiente tarea del `PLAN.md` es **F3.2 · Caja en móvil**, que en buena parte ya quedó resuelta al construir F3.1 (ver nota abajo). También están libres S4.1 (gastos) y S7.1 (`period_range`).
 
 ## Stack instalado
 
@@ -70,6 +71,7 @@ npm run app:build
 npm --prefix app run smoke
 npm run app:test:auth
 npm run app:test:business-switcher
+npm run app:test:caja
 npm run app:test:inventory
 npm run app:test:inventory-import
 npm run app:test:onboarding
@@ -158,15 +160,21 @@ npm run db:types
 - `frequent_products` solo cuenta ventas `CONFIRMED` y dentro de la ventana de días; una venta anulada deja de contar.
 - **No se añadió índice trigram**, pese a lo previsto en S2.1: la consulta siempre filtra por `business_id`, los catálogos por negocio son pequeños y un índice GIN encarecería cada escritura del import masivo. Reevaluar con catálogos grandes de verdad.
 - Sí se añadió `sale(business_id, status, sold_at)` para que los frecuentes no recorran todo el historial.
+- `app/app/stores/cart.ts` guarda el carrito. El precio y el costo que conserva son **una copia para mostrar**: al cobrar solo viaja `[{product_id, qty}]` y `create_sale` resuelve los valores actuales.
+- El estimado del carrito resta el descuento igual que el servidor, así que lo que se ve antes de cobrar coincide con lo que queda registrado. Es la única excepción permitida a calcular dinero fuera de Postgres.
+- El fiado sin cliente **no se bloquea en el cliente**: se envía y se muestra el error del backend, tal como pide el criterio de F3.1. La prueba filtra el `400` que eso deja en consola.
+- Cambiar de negocio vacía el carrito; si no, quedarían productos del negocio anterior en pantalla.
+- El generador de tipos **no modela la nulabilidad de los argumentos** de una función SQL: declara `p_customer` y `p_due` como obligatorios aunque acepten null. En `caja.vue` se resuelve con un cast al tipo `Args`, comentado en el sitio.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar S3.3:
+Validaciones vigentes al completar F3.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
+- `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. Borra las ventas que crea.
 - `npm run app:test:inventory-import`: alta manual con categoría y proveedor nuevos, aviso de SKU repetido, importación con una fila válida y una con decimales, y comprobación en PostgreSQL de lo guardado. Limpia sus fixtures al terminar.
 - `npm run app:test:inventory`: listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, ajuste de existencias con su movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
@@ -180,17 +188,20 @@ Validaciones vigentes al completar S3.3:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F3.1
+## Próximo trabajo: F3.2
 
-Vista Caja, la primera pantalla que usa todo el backend de la Fase 3:
+Caja en móvil. **Buena parte ya quedó hecha en F3.1**: por debajo de 1120 px el
+panel de cobro se apila bajo el carrito, el botón de cobro es de ancho completo
+y los controles ± y de borrar miden 44 px. Antes de escribir código conviene
+mirar la pantalla a 390 px y decidir qué falta de verdad. Candidatos:
 
-1. Buscador con resultados de `search_products` (stock y precio a la vista) y botones de `frequent_products`.
-2. Carrito con ± por línea y margen por línea. El total y la ganancia estimada del carrito son **la única excepción permitida** a calcular dinero fuera de Postgres; al cobrar manda `create_sale`.
-3. Panel de cliente, método de pago, total y ganancia estimada.
-4. Aceptación: cobrar limpia el carrito, muestra confirmación con el monto y baja el stock; fiado sin cliente muestra el error del backend; el botón «+ Nueva venta» no aparece dentro de Caja.
+1. Que el total y el botón de cobro queden siempre a la vista al hacer scroll
+   con el carrito largo (barra fija abajo).
+2. Etiquetas más cortas en los métodos de pago si se aprietan.
+3. Que el teclado numérico no tape el campo de descuento.
 
-Recordatorio: `create_sale` recibe `[{product_id, qty}]` y resuelve el precio en
-el servidor. El carrito no debe mandar precios.
+Si al revisarlo no falta nada, la tarea se cierra documentándolo en vez de
+inventar cambios.
 
 ## Diseño pendiente
 
