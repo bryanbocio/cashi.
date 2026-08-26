@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F1.5.
+Actualizado: 26 de agosto de 2026, después de completar S2.1.
 
 ## Preferencias del usuario
 
@@ -28,8 +28,9 @@ Completado y versionado:
 | F1.3 | `76b673e` | Onboarding real para crear y activar un negocio |
 | F1.4 | `d17e319` | Selector de negocio, cambio de contexto y cierre de sesión |
 | F1.5 | `70741ab` | Ajustes de negocio, logo privado, cuenta y contraseña |
+| S2.1 | `62d45c7` | Vista `v_product_stats`, filtros de inventario e índices |
 
-La siguiente tarea del `PLAN.md` es **S2.1 · Consultas de producto**.
+La siguiente tarea del `PLAN.md` es **F2.1 · Vista Inventario** (S2.2 y S2.3 también quedan desbloqueadas).
 
 ## Stack instalado
 
@@ -95,11 +96,17 @@ npm run db:types
 - `app/tests/onboarding-flow.mjs` registra y confirma un usuario nuevo, crea el negocio desde la UI y verifica directamente que existan la membresía `OWNER`, las dos categorías base y las tres secuencias documentales.
 - `app/tests/business-switcher.mjs` crea temporalmente un segundo negocio, alterna ambos desde escritorio y móvil, comprueba el contexto visible y el cierre de sesión, y elimina el fixture al finalizar.
 - `app/tests/settings-flow.mjs` registra un usuario temporal, crea y edita su negocio, sube un PNG real, actualiza el perfil y la contraseña, vuelve a iniciar sesión y elimina todos sus fixtures.
+- `v_product_stats` (migración `20260826150000_product_stats.sql`) devuelve cada producto con `margin_amount`, `margin_pct`, `inventory_value`, `retail_value`, `is_low_stock` e `is_thin_margin`, más el nombre de su categoría y proveedor.
+- La vista se declara `with (security_invoker = true)`; sin esa opción correría como su dueño y expondría el catálogo de todos los negocios. Los `grant` iniciales usaron `on all tables`, así que la vista necesita su propio `grant select ... to authenticated`. Ambas cosas están cubiertas por pruebas.
+- Reglas aplicadas: stock bajo es `stock < min_stock` estricto (4/4 no es bajo); el margen es `(price − cost) / price` con dos decimales y `null` cuando `price = 0`; margen estrecho es margen bruto por debajo del **20 %**, y también un producto con costo pero sin precio.
+- Los filtros del inventario se aplican desde el cliente con PostgREST: `or=(name.ilike.*q*,sku.ilike.*q*)` para la búsqueda, `eq` para categoría y proveedor, `is_low_stock=eq.true` e `is_thin_margin=eq.true` para las banderas. Hay índices `product(business_id, category_id)` y `product(business_id, supplier_id)`.
+- El seed incluye `ACC-004 · Bolsa de regalo` (16 % de margen) para que el filtro de margen bajo tenga datos reales.
+- No se añadió índice trigram: con el catálogo acotado por `business_id` el `ilike` es barato. Reevaluar en S3.3 si la búsqueda de caja lo necesita.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar F1.5:
+Validaciones vigentes al completar S2.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -109,18 +116,21 @@ Validaciones vigentes al completar F1.5:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 53 pruebas SQL y 100 códigos concurrentes únicos.
-- `supabase db lint` no reporta problemas propios; muestra solo avisos del esquema interno de Supabase Storage.
+- `npm run db:test`: 92 pruebas SQL (53 previas + 39 de `product_stats`) y 100 códigos concurrentes únicos.
+- `supabase db lint`: «No schema errors found».
+- Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S2.1
+## Próximo trabajo: F2.1
 
-Implementar:
+Implementar la vista Inventario sobre `v_product_stats`:
 
-1. Crear la vista `v_product_stats` con margen, valor de inventario y bandera de stock bajo.
-2. Implementar filtros por búsqueda `q`, categoría, proveedor, stock bajo (`low`) y margen estrecho (`thin_margin`).
-3. Mantener el aislamiento por `business_id` mediante RLS o una función de consulta segura.
-4. Añadir pruebas de cálculos, combinaciones de filtros y aislamiento entre negocios.
+1. Tabla en escritorio y tarjetas en móvil, reutilizando `ui/DataTable.vue` y `ui/CardList.vue`.
+2. Buscador y filtros Todos / Stock bajo / Margen bajo con las consultas PostgREST ya documentadas.
+3. Panel lateral de edición (costo, precio, stock, mínimo) con margen y valor en vivo, que guarda y refresca sin recargar.
+4. Destacar la fila de stock bajo con su aviso.
+
+Nota para la implementación: los tipos generados declaran todas las columnas de la vista como opcionales (`| null`), porque Postgres no infiere `not null` en vistas. La UI debe manejarlo en vez de forzar el tipo.
 
 ## Diseño pendiente
 
