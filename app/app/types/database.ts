@@ -418,6 +418,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stats"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchase_line_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
@@ -571,6 +578,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "quote_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stats"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quote_line_quote_id_fkey"
             columns: ["quote_id"]
             isOneToOne: false
@@ -698,6 +712,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sale_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stats"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sale_line_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
@@ -752,6 +773,13 @@ export type Database = {
             referencedRelation: "product"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_movement_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stats"
+            referencedColumns: ["id"]
+          },
         ]
       }
       supplier: {
@@ -794,7 +822,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_product_stats: {
+        Row: {
+          active: boolean | null
+          business_id: string | null
+          category_id: string | null
+          category_name: string | null
+          cost: number | null
+          created_at: string | null
+          id: string | null
+          inventory_value: number | null
+          is_low_stock: boolean | null
+          is_thin_margin: boolean | null
+          margin_amount: number | null
+          margin_pct: number | null
+          min_stock: number | null
+          name: string | null
+          price: number | null
+          retail_value: number | null
+          sku: string | null
+          stock: number | null
+          supplier_id: string | null
+          supplier_name: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "category"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       create_business: {

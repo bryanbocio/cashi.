@@ -30,7 +30,7 @@ Reemplazo propio de una app de gestión tipo Treinta. Genérico por diseño: sir
 1. **Costo congelado**: cada línea de venta guarda `unit_price` y `unit_cost` copiados del producto en el instante de la venta. Cambiar el costo de un producto **nunca** modifica la ganancia histórica.
 2. **Ganancia bruta** = Σ `qty × (unit_price − unit_cost)` de las líneas del periodo.
 3. **Ganancia neta** = ganancia bruta − gastos con fecha dentro del periodo.
-4. **Margen bruto %** = bruta / ingresos. **Margen neto %** = neta / ingresos. Las variaciones de un porcentaje se expresan en **puntos porcentuales (pp)**; las de un monto, en **%**.
+4. **Margen bruto %** = bruta / ingresos. **Margen neto %** = neta / ingresos. Las variaciones de un porcentaje se expresan en **puntos porcentuales (pp)**; las de un monto, en **%**. A nivel de producto el margen bruto es `(price − cost) / price`; con `price = 0` es indefinido (`null`), no cero. Un producto con margen bruto **por debajo del 20 %** se marca como **margen estrecho**, y también lo hace el que tiene costo pero no precio.
 5. **Comparativa**: todo periodo se compara contra el periodo inmediatamente anterior de la misma longitud (hoy vs ayer, 7 d vs los 7 d previos, mes vs mes anterior).
 6. **Stock**: se descuenta al confirmar la venta; se suma al recibir una orden de compra. Vender con stock 0 está permitido pero avisa.
 7. **Recepción de compra**: al recibir, el `unit_cost` de la orden pasa a ser el costo actual del producto y el stock aumenta. Afecta el margen futuro, no el histórico.
@@ -136,6 +136,25 @@ Todas `security definer`, con validación de `is_member` al entrar, y `search_pa
 | `period_range`           | `(p_timezone text, p_period text, p_month_offset int) → record`                                           | Utilidad interna:`from`, `to`, `prev_from`, `prev_to`, etiquetas. Todo lo demás la usa.                                                               |
 
 Vistas de lectura para listados simples: `v_credits` (deuda por cliente), `v_product_stats` (margen y valor de inventario), `v_sale_detail` (venta con ganancia y nombre de cliente).
+
+Toda vista se declara `with (security_invoker = true)` para heredar la RLS de sus tablas, y necesita su propio `grant select ... to authenticated`: los grants iniciales se emitieron con `on all tables` y no alcanzan a los objetos creados después.
+
+Contrato de `v_product_stats` (una fila por producto del negocio):
+
+```
+id, business_id, name, sku, active,
+category_id, category_name, supplier_id, supplier_name,
+cost, price, stock, min_stock,
+margin_amount   bigint   -- price - cost
+margin_pct      numeric  -- margen bruto %, dos decimales, null si price = 0
+inventory_value bigint   -- cost * stock
+retail_value    bigint   -- price * stock
+is_low_stock    boolean  -- stock < min_stock
+is_thin_margin  boolean  -- margen bruto < 20 %
+created_at, updated_at
+```
+
+Los filtros del inventario no son parámetros de la vista, se aplican desde el cliente vía PostgREST: `q` con `or=(name.ilike.*q*,sku.ilike.*q*)`, categoría y proveedor con `eq`, y `low` / `thin_margin` con `is_low_stock=eq.true` / `is_thin_margin=eq.true`.
 
 Ejemplo del contrato de `metrics_summary`:
 
