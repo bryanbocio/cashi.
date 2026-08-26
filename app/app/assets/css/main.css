@@ -87,8 +87,14 @@
 @media (width < 760px) {
   .p-inputtext,
   .p-select,
+  .p-select-label,
   .p-datepicker-input,
-  .p-selectbutton .p-togglebutton {
+  .p-selectbutton .p-togglebutton,
+  .p-toast-close-button {
     min-height: 44px;
+  }
+
+  .p-toast-close-button {
+    min-width: 44px;
   }
 }

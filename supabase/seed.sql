@@ -97,6 +97,27 @@ insert into public.customer (id, business_id, name, phone) values
   ('60000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000001', 'Luis Torres', '3205550104'),
   ('60000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000001', 'María López', '3205550105');
 
+-- Gastos del mes local: hacen visible la distribución y el estado recurrente
+-- en la pantalla demo sin depender de fechas fijas del calendario.
+with local_month as (
+  select date_trunc('month', current_timestamp at time zone b.timezone)::date as starts_at,
+         (current_timestamp at time zone b.timezone)::date as today
+  from public.business b
+  where b.id = '20000000-0000-0000-0000-000000000001'
+)
+insert into public.expense (
+  id, business_id, concept, category, amount, spent_at, recurring
+)
+select id, '20000000-0000-0000-0000-000000000001', concept, category, amount, spent_at, recurring
+from local_month,
+lateral (values
+  ('84000000-0000-0000-0000-000000000001'::uuid, 'Arriendo local', 'Arriendo', 1200000::bigint, starts_at, true),
+  ('84000000-0000-0000-0000-000000000002'::uuid, 'Energía · mes en curso', 'Servicios', 286000::bigint, least(starts_at + 9, today), false),
+  ('84000000-0000-0000-0000-000000000003'::uuid, 'Internet · mes en curso', 'Servicios', 200000::bigint, least(starts_at + 11, today), true),
+  ('84000000-0000-0000-0000-000000000004'::uuid, 'Pauta en redes sociales', 'Publicidad', 180000::bigint, least(starts_at + 19, today), false),
+  ('84000000-0000-0000-0000-000000000005'::uuid, 'Domicilio de pedido', 'Domicilios', 12000::bigint, today, false)
+) as fixture(id, concept, category, amount, spent_at, recurring);
+
 insert into public.doc_sequence (business_id, doc_type, next_value) values
   ('20000000-0000-0000-0000-000000000001', 'SALE', 1),
   ('20000000-0000-0000-0000-000000000001', 'QUOTE', 1),
