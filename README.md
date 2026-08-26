@@ -25,7 +25,7 @@ de `Publishable key` como `NUXT_PUBLIC_SUPABASE_KEY`.
 
 ## Aplicación web
 
-El frontend usa Nuxt 4, Tailwind CSS 4, PrimeVue 5, Pinia y el módulo oficial
+El frontend usa Nuxt 4, Tailwind CSS 4, PrimeVue 4 (MIT), Pinia y el módulo oficial
 de Supabase para Nuxt.
 
 ```powershell
