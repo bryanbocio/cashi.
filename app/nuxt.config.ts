@@ -43,6 +43,7 @@ export default defineNuxtConfig({
         'Drawer',
         'InputText',
         'Message',
+        'Select',
         'SelectButton',
         'Skeleton',
         'Tag',

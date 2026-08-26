@@ -16,6 +16,7 @@
     "app:typecheck": "npm --prefix app run typecheck",
     "app:build": "npm --prefix app run build",
     "app:test:auth": "npm --prefix app run test:auth",
+    "app:test:onboarding": "npm --prefix app run test:onboarding",
     "app:test:session-business": "npm --prefix app run test:session-business"
   },
   "keywords": [],

@@ -11,6 +11,7 @@
     "typecheck": "nuxt typecheck --dotenv ../.env",
     "smoke": "node tests/smoke.mjs",
     "test:auth": "node tests/auth-flow.mjs",
+    "test:onboarding": "node tests/onboarding-flow.mjs",
     "test:session-business": "node tests/session-business.mjs"
   },
   "dependencies": {
