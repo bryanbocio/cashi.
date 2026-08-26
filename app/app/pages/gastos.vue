@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import IconPlus from '~icons/lucide/plus'
+import IconPencil from '~icons/lucide/pencil'
+import IconTrash from '~icons/lucide/trash-2'
 import type { Database } from '~/types/database'
 import type { DataTableColumn } from '~/components/ui/DataTable.vue'
 import {
@@ -32,6 +34,8 @@ const categoryFilter = ref<string | null>(null)
 const loading = ref(true)
 const summaryLoading = ref(true)
 const createOpen = ref(false)
+const deleteOpen = ref(false)
+const selectedExpense = ref<ExpenseRow | null>(null)
 const filtersReady = ref(false)
 
 const columns: DataTableColumn[] = [
@@ -39,6 +43,7 @@ const columns: DataTableColumn[] = [
   { key: 'concept', label: 'Concepto' },
   { key: 'category', label: 'Categoría' },
   { key: 'amount', label: 'Monto', align: 'right', mono: true },
+  { key: 'actions', label: 'Acciones', align: 'right' },
 ]
 
 const categoryOptions = computed(() => {
@@ -162,8 +167,23 @@ function clearFilters() {
   rangeTo.value = monthTo.value ? calendarDateToPicker(addCalendarDays(monthTo.value, -1)) : null
 }
 
-async function afterCreated() {
+async function afterSaved() {
   await Promise.all([loadSummary(), loadExpenses()])
+}
+
+function openCreate() {
+  selectedExpense.value = null
+  createOpen.value = true
+}
+
+function openEdit(expense: ExpenseRow) {
+  selectedExpense.value = expense
+  createOpen.value = true
+}
+
+function openDelete(expense: ExpenseRow) {
+  selectedExpense.value = expense
+  deleteOpen.value = true
 }
 </script>
 
@@ -192,7 +212,7 @@ async function afterCreated() {
         </div>
       </div>
 
-      <UiButton class="justify-self-end max-[1120px]:col-span-2 max-[1120px]:w-full max-[760px]:col-span-1" data-testid="open-expense" @click="createOpen = true"><IconPlus class="size-4" aria-hidden="true" />Nuevo gasto</UiButton>
+      <UiButton class="justify-self-end max-[1120px]:col-span-2 max-[1120px]:w-full max-[760px]:col-span-1" data-testid="open-expense" @click="openCreate"><IconPlus class="size-4" aria-hidden="true" />Nuevo gasto</UiButton>
     </div>
 
     <div class="mb-4 grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-3 max-[1120px]:grid-cols-2 max-[760px]:grid-cols-1">
@@ -216,6 +236,12 @@ async function afterCreated() {
         <template #cell-concept="{ row }"><strong class="font-medium">{{ (row as ExpenseRow).concept }}</strong><UiChip v-if="(row as ExpenseRow).recurring" class="ml-2">Recurrente</UiChip></template>
         <template #cell-category="{ row }"><span class="text-muted">{{ (row as ExpenseRow).category }}</span></template>
         <template #cell-amount="{ row }"><span :data-testid="`expense-row-${(row as ExpenseRow).id}`">{{ formatMoney((row as ExpenseRow).amount) }}</span></template>
+        <template #cell-actions="{ row }">
+          <div class="flex justify-end gap-1">
+            <UiButton variant="ghost" class="!min-h-10 !w-10 !p-0" :aria-label="`Editar ${String((row as ExpenseRow).concept)}`" title="Editar gasto" :data-testid="`expense-edit-${(row as ExpenseRow).id}`" @click="openEdit(row as ExpenseRow)"><IconPencil class="size-4" aria-hidden="true" /></UiButton>
+            <UiButton variant="ghost" class="!min-h-10 !w-10 !p-0 !text-negative" :aria-label="`Eliminar ${String((row as ExpenseRow).concept)}`" title="Eliminar gasto" :data-testid="`expense-delete-${(row as ExpenseRow).id}`" @click="openDelete(row as ExpenseRow)"><IconTrash class="size-4" aria-hidden="true" /></UiButton>
+          </div>
+        </template>
       </UiDataTable>
 
       <UiCardList :items="rows" :empty-message="emptyMessage">
@@ -223,11 +249,16 @@ async function afterCreated() {
           <div class="grid gap-3" :data-testid="`expense-card-${(item as ExpenseRow).id}`">
             <div class="flex items-start justify-between gap-3"><strong class="min-w-0 font-medium">{{ (item as ExpenseRow).concept }}</strong><strong class="shrink-0 font-display text-[16px]">{{ formatMoney((item as ExpenseRow).amount) }}</strong></div>
             <div class="flex flex-wrap items-center gap-1.5"><span class="font-mono text-[10.5px] text-subtle">{{ formatCalendarDate((item as ExpenseRow).spent_at) }}</span><UiChip>{{ (item as ExpenseRow).category }}</UiChip><UiChip v-if="(item as ExpenseRow).recurring">Recurrente</UiChip></div>
+            <div class="grid grid-cols-2 gap-2">
+              <UiButton variant="secondary" :data-testid="`expense-edit-mobile-${(item as ExpenseRow).id}`" @click="openEdit(item as ExpenseRow)"><IconPencil class="size-4" aria-hidden="true" />Editar</UiButton>
+              <UiButton variant="ghost" class="!text-negative" :data-testid="`expense-delete-mobile-${(item as ExpenseRow).id}`" @click="openDelete(item as ExpenseRow)"><IconTrash class="size-4" aria-hidden="true" />Eliminar</UiButton>
+            </div>
           </div>
         </template>
       </UiCardList>
     </template>
 
-    <ExpensesExpenseFormModal v-model:open="createOpen" @created="afterCreated" />
+    <ExpensesExpenseFormModal v-model:open="createOpen" :expense="selectedExpense" @saved="afterSaved" />
+    <ExpensesExpenseDeleteModal v-model:open="deleteOpen" :expense="selectedExpense" @deleted="afterSaved" />
   </section>
 </template>

@@ -109,14 +109,17 @@ try {
 
   await page.goto(`${baseUrl}/inventario`, { waitUntil: 'networkidle' })
   const count = page.locator('[data-testid="inventory-count"]')
+  const inventoryTotal = page.locator('[data-testid="inventory-total-value"]')
 
   // El seed trae 9 productos y el fixture suma uno más.
   await waitForText(count, '10 productos', 'Conteo inicial del inventario')
+  await waitForText(inventoryTotal, '1.930.500', 'Valor total inicial del inventario')
   await page.locator(`[data-testid="row-${sku}"]`).waitFor()
 
   // Buscador: reduce la lista a un solo producto.
   await page.locator('#inventory-search').fill(sku)
   await waitForText(count, '1 producto', 'Conteo tras buscar por SKU')
+  await waitForText(inventoryTotal, '1.930.500', 'El total no cambia con el buscador')
   await page.locator('#inventory-search').fill('')
   await waitForText(count, '10 productos', 'Conteo tras limpiar la búsqueda')
 
@@ -151,6 +154,7 @@ try {
   await page.locator('[data-testid="panel-adjust"]').click()
   await page.getByText('Las existencias fueron ajustadas.').waitFor()
   await waitForText(page.locator('[data-testid="panel-stock"]'), '12', 'Stock tras el ajuste')
+  await waitForText(inventoryTotal, '2.030.500', 'Valor total tras ajustar existencias')
 
   await page.keyboard.press('Escape')
   await page.locator('[data-testid="product-panel"]').waitFor({ state: 'hidden' })
@@ -180,7 +184,7 @@ try {
 
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
 
-  console.log(`PASS: Inventario listó, filtró y editó ${sku}; el ajuste de stock quedó con su movimiento.`)
+  console.log(`PASS: Inventario mostró su valor completo, listó, filtró y editó ${sku}; el ajuste actualizó stock y total.`)
 } catch (error) {
   const pageText = await page?.locator('body').innerText().catch(() => '')
   console.error(`URL final: ${page?.url() ?? 'sin página'}\nErrores del navegador: ${browserErrors.join(' | ') || 'ninguno'}\nContenido: ${pageText?.slice(0, 3000)}`)

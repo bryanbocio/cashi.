@@ -31,6 +31,9 @@ const supplierId = ref<string | null>(null)
 const rows = ref<ProductRow[]>([])
 const categories = ref<Option[]>([])
 const suppliers = ref<Option[]>([])
+const inventoryTotal = ref(0)
+const inventoryProductCount = ref(0)
+const summaryLoading = ref(true)
 const loading = ref(true)
 const panelOpen = ref(false)
 const createOpen = ref(false)
@@ -63,6 +66,29 @@ async function loadFacets(businessId: string) {
 
   categories.value = (categoryRows ?? []).map(item => ({ label: item.name, value: item.id }))
   suppliers.value = (supplierRows ?? []).map(item => ({ label: item.name, value: item.id }))
+}
+
+async function loadInventorySummary(businessId = businessStore.activeBusinessId) {
+  if (!businessId) return
+  summaryLoading.value = true
+  try {
+    const data = await execute(client
+      .from('v_inventory_summary')
+      .select('inventory_value, product_count')
+      .eq('business_id', businessId)
+      .maybeSingle())
+    if (businessStore.activeBusinessId === businessId) {
+      inventoryTotal.value = data?.inventory_value ?? 0
+      inventoryProductCount.value = data?.product_count ?? 0
+    }
+  } catch {
+    if (businessStore.activeBusinessId === businessId) {
+      inventoryTotal.value = 0
+      inventoryProductCount.value = 0
+    }
+  } finally {
+    if (businessStore.activeBusinessId === businessId) summaryLoading.value = false
+  }
 }
 
 async function loadProducts() {
@@ -107,15 +133,17 @@ watch(() => businessStore.activeBusinessId, async businessId => {
   selectedId.value = null
   panelOpen.value = false
   if (!businessId) return
-  await loadFacets(businessId)
-  await loadProducts()
+  await Promise.all([loadFacets(businessId), loadProducts(), loadInventorySummary(businessId)])
 }, { immediate: true })
 
 async function reloadAll() {
   const businessId = businessStore.activeBusinessId
   if (!businessId) return
-  await loadFacets(businessId)
-  await loadProducts()
+  await Promise.all([loadFacets(businessId), loadProducts(), loadInventorySummary(businessId)])
+}
+
+async function reloadProductsAndSummary() {
+  await Promise.all([loadProducts(), loadInventorySummary()])
 }
 
 function openProduct(product: ProductRow) {
@@ -148,6 +176,15 @@ function clearFilters() {
         </UiButton>
       </div>
     </header>
+
+    <div class="mb-5 flex items-center justify-between gap-5 rounded-[9px] border border-black/10 bg-panel px-5 py-4 max-[760px]:items-start max-[760px]:px-4" data-testid="inventory-summary">
+      <div>
+        <p class="mb-1 font-mono text-[9.5px] font-medium tracking-[.05em] text-subtle uppercase">Valor total del inventario</p>
+        <PrimeSkeleton v-if="summaryLoading" width="10rem" height="2rem" />
+        <strong v-else class="block font-display text-[28px] leading-tight tracking-[-.03em]" data-testid="inventory-total-value">{{ formatMoney(inventoryTotal) }}</strong>
+        <span class="mt-1 block text-[11px] text-muted">Costo × existencias · {{ inventoryProductCount }} {{ inventoryProductCount === 1 ? 'producto activo' : 'productos activos' }}</span>
+      </div>
+    </div>
 
     <div class="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 max-[1120px]:grid-cols-1">
       <div class="grid grid-cols-3 gap-3 max-[1120px]:grid-cols-2 max-[760px]:grid-cols-1">
@@ -231,7 +268,7 @@ function clearFilters() {
       </UiCardList>
     </template>
 
-    <InventoryProductPanel v-model:open="panelOpen" :product="selectedProduct" @saved="loadProducts" />
+    <InventoryProductPanel v-model:open="panelOpen" :product="selectedProduct" @saved="reloadProductsAndSummary" />
     <InventoryProductFormModal v-model:open="createOpen" :categories="categories" :suppliers="suppliers" @created="reloadAll" />
     <InventoryImportModal v-model:open="importOpen" @imported="reloadAll" />
   </section>

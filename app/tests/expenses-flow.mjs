@@ -6,6 +6,7 @@ const port = 3460
 const baseUrl = `http://localhost:${port}`
 const demoBusinessId = '20000000-0000-0000-0000-000000000001'
 const concept = 'Reparación de vitrina F4.1'
+const editedConcept = 'Reparación corregida F4.1'
 const browserCandidates = [
   process.env.BROWSER_PATH,
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -23,7 +24,7 @@ function psql(query) {
 }
 
 function cleanupFixture() {
-  psql(`delete from public.expense where business_id = '${demoBusinessId}' and concept = '${concept}';`)
+  psql(`delete from public.expense where business_id = '${demoBusinessId}' and concept in ('${concept}', '${editedConcept}');`)
 }
 
 const server = spawn(process.execPath, ['.output/server/index.mjs'], {
@@ -117,6 +118,25 @@ try {
     throw new Error(`El gasto no quedó como se esperaba: ${stored}`)
   }
 
+  // La edición precarga el gasto y actualiza tanto la fila como el resumen.
+  await page.locator(`[data-testid="expense-edit-${expenseId}"]`).click()
+  await page.getByText('Editar gasto', { exact: true }).waitFor()
+  await page.locator('#expense-concept').fill(editedConcept)
+  await page.locator('#expense-amount').fill('52000')
+  await page.locator('[data-testid="expense-create-submit"]').click()
+  await page.getByText('Los cambios ya aparecen en el resumen.').waitFor()
+  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1.930.000', 'Total después de editar')
+  await page.getByText(editedConcept, { exact: true }).first().waitFor()
+
+  const updated = psql(`
+    select concept, amount, recurring
+    from public.expense
+    where id = '${expenseId}' and business_id = '${demoBusinessId}';
+  `)
+  if (updated !== `${editedConcept}|52000|t`) {
+    throw new Error(`La edición no quedó persistida: ${updated}`)
+  }
+
   await page.locator('#expense-filter-category').click()
   await page.getByRole('option', { name: 'Otro', exact: true }).click()
   await waitForText(page.locator('[data-testid="expense-count"]'), '1 gasto', 'Filtro de la categoría Otro')
@@ -140,7 +160,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 })
   const card = page.locator(`[data-testid="expense-card-${expenseId}"]`)
   await card.waitFor({ state: 'visible' })
-  await waitForText(card, concept, 'Tarjeta móvil del gasto')
+  await waitForText(card, editedConcept, 'Tarjeta móvil del gasto')
   await waitForText(card, 'RECURRENTE', 'Marca recurrente móvil')
 
   const smallTargets = await page.evaluate(() => [...document.querySelectorAll('button, input, [role="combobox"]')]
@@ -152,8 +172,19 @@ try {
     .map(({ id, box }) => `${id} (${Math.round(box.height)} px)`))
   if (smallTargets.length) throw new Error(`Controles por debajo de 44 px en móvil: ${smallTargets.join(', ')}`)
 
+  // El borrado exige confirmación y retira el monto del resumen mensual.
+  await page.locator(`[data-testid="expense-delete-mobile-${expenseId}"]`).click()
+  await page.getByText('Eliminar gasto', { exact: true }).first().waitFor()
+  await page.locator('[data-testid="expense-delete-confirm"]').click()
+  await page.getByText('El resumen mensual fue actualizado.').waitFor()
+  await waitForText(page.locator('[data-testid="expense-count"]'), '0 gastos', 'Conteo después de eliminar')
+  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1.878.000', 'Total después de eliminar')
+  if (psql(`select count(*) from public.expense where id = '${expenseId}';`) !== '0') {
+    throw new Error('El gasto eliminado todavía existe en PostgreSQL.')
+  }
+
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
-  console.log('PASS: Gastos mostró total y distribución, filtró por fecha/categoría, registró Otro y cambió a tarjetas en móvil.')
+  console.log('PASS: Gastos resumió, filtró, creó, editó y eliminó; en móvil cambió a tarjetas con controles accesibles.')
 } catch (error) {
   const pageText = await page?.locator('body').innerText().catch(() => '')
   console.error(`URL final: ${page?.url() ?? 'sin página'}\nErrores del navegador: ${browserErrors.join(' | ') || 'ninguno'}\nContenido: ${pageText?.slice(0, 3500)}`)

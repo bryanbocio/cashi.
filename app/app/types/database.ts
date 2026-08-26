@@ -886,6 +886,24 @@ export type Database = {
           },
         ]
       }
+      v_inventory_summary: {
+        Row: {
+          business_id: string | null
+          inventory_value: number | null
+          product_count: number | null
+          retail_value: number | null
+          stock_units: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_product_stats: {
         Row: {
           active: boolean | null

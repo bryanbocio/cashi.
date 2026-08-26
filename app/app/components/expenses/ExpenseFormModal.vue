@@ -7,15 +7,18 @@ import {
   calendarDateToPicker,
   instantToBusinessDate,
   pickerToCalendarDate,
+  type ExpenseRow,
 } from '~/utils/expenses'
 
-const emit = defineEmits<{ created: [] }>()
+const props = defineProps<{ expense?: ExpenseRow | null }>()
+const emit = defineEmits<{ saved: [] }>()
 const open = defineModel<boolean>('open', { default: false })
 
 const client = useSupabaseClient<Database>()
 const businessStore = useBusinessStore()
 const toast = useToast()
-const { notifyError } = useSupabaseRequest()
+const { execute } = useSupabaseRequest()
+const editing = computed(() => Boolean(props.expense))
 
 const categoryOptions = EXPENSE_CATEGORIES.map(value => ({ label: value, value }))
 const schema = z.object({
@@ -40,9 +43,16 @@ function businessToday() {
   return calendarDateToPicker(instantToBusinessDate(new Date().toISOString(), timezone))
 }
 
-watch(open, value => {
-  if (!value) return
-  Object.assign(form, {
+watch([open, () => props.expense], ([isOpen]) => {
+  if (!isOpen) return
+  const expense = props.expense
+  Object.assign(form, expense ? {
+    category: expense.category,
+    concept: expense.concept,
+    amount: expense.amount,
+    spentAt: calendarDateToPicker(expense.spent_at),
+    recurring: expense.recurring,
+  } : {
     category: '',
     concept: '',
     amount: null,
@@ -50,7 +60,7 @@ watch(open, value => {
     recurring: false,
   })
   Object.keys(errors).forEach(key => { errors[key] = undefined })
-})
+}, { immediate: true })
 
 async function submit() {
   const businessId = businessStore.activeBusinessId
@@ -68,28 +78,33 @@ async function submit() {
 
   saving.value = true
   try {
-    const { error } = await client.from('expense').insert({
+    const values = {
       business_id: businessId,
       category: result.data.category,
       concept: result.data.concept,
       amount: result.data.amount,
       spent_at: pickerToCalendarDate(result.data.spentAt)!,
       recurring: form.recurring,
-    })
+    }
 
-    if (error) {
-      notifyError(error)
-      return
+    if (props.expense) {
+      await execute(client.from('expense').update(values)
+        .eq('id', props.expense.id)
+        .eq('business_id', businessId))
+    } else {
+      await execute(client.from('expense').insert(values))
     }
 
     toast.add({
       severity: 'success',
-      summary: 'Gasto registrado',
-      detail: 'El gasto ya cuenta para la ganancia neta.',
+      summary: editing.value ? 'Gasto actualizado' : 'Gasto registrado',
+      detail: editing.value ? 'Los cambios ya aparecen en el resumen.' : 'El gasto ya cuenta para la ganancia neta.',
       life: 4000,
     })
     open.value = false
-    emit('created')
+    emit('saved')
+  } catch {
+    // useSupabaseRequest ya mostró un error seguro para el usuario.
   } finally {
     saving.value = false
   }
@@ -97,7 +112,7 @@ async function submit() {
 </script>
 
 <template>
-  <UiModal v-model="open" title="Nuevo gasto">
+  <UiModal v-model="open" :title="editing ? 'Editar gasto' : 'Nuevo gasto'">
     <form id="expense-create-form" class="grid grid-cols-2 gap-4 max-[560px]:grid-cols-1" novalidate @submit.prevent="submit">
       <div class="col-span-2 max-[560px]:col-span-1">
         <label for="expense-category" class="mb-1.5 block text-[11px] font-semibold text-ink">Categoría</label>
@@ -134,7 +149,7 @@ async function submit() {
 
     <template #footer>
       <UiButton variant="secondary" :disabled="saving" @click="open = false">Cancelar</UiButton>
-      <UiButton type="submit" form="expense-create-form" :loading="saving" data-testid="expense-create-submit">Registrar gasto</UiButton>
+      <UiButton type="submit" form="expense-create-form" :loading="saving" data-testid="expense-create-submit">{{ editing ? 'Guardar cambios' : 'Registrar gasto' }}</UiButton>
     </template>
   </UiModal>
 </template>
