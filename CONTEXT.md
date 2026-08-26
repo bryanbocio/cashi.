@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F1.3.
+Actualizado: 26 de agosto de 2026, después de completar F1.4.
 
 ## Preferencias del usuario
 
@@ -26,8 +26,9 @@ Completado y versionado:
 | F1.1 | `ef6a1cd` | Registro, login y recuperación de contraseña |
 | F1.2 | `66b2ec2` | Middleware de sesión y validación del negocio activo |
 | F1.3 | `76b673e` | Onboarding real para crear y activar un negocio |
+| F1.4 | `d17e319` | Selector de negocio, cambio de contexto y cierre de sesión |
 
-La siguiente tarea del `PLAN.md` es **F1.4 · Selector de negocio**.
+La siguiente tarea del `PLAN.md` es **F1.5 · Ajustes**.
 
 ## Stack instalado
 
@@ -57,6 +58,7 @@ npm run app:typecheck
 npm run app:build
 npm --prefix app run smoke
 npm run app:test:auth
+npm run app:test:business-switcher
 npm run app:test:onboarding
 npm run app:test:session-business
 npm run db:test
@@ -78,34 +80,38 @@ npm run db:types
 - `app/app/middleware/auth.global.ts` protege las rutas privadas y conserva el destino solicitado en `?redirect=`.
 - `app/app/middleware/business.ts` carga las membresías y envía a onboarding cuando no existe un negocio válido.
 - `app/app/stores/business.ts` conserva `cashi.active-business-id` en `localStorage`, valida el UUID mediante una consulta protegida por RLS y expone el negocio/membresía activos.
-- La sidebar ya muestra el nombre, las iniciales y el rol del negocio activo; el selector completo corresponde a F1.4.
+- `app/app/components/BusinessSwitcher.vue` lista todas las membresías, marca el negocio activo y funciona tanto en la sidebar de escritorio como en el encabezado móvil.
+- Al alternar negocios se actualiza `cashi.active-business-id`, se limpian los caches de Nuxt y se vuelve al Resumen. Las vistas provisionales ya muestran el negocio real en vez de un nombre fijo.
+- El selector contiene "Crear otro negocio" y "Cerrar sesión"; al salir se eliminan la sesión de Supabase, el estado Pinia y el negocio guardado.
 - `/onboarding` valida nombre, moneda y zona horaria; llama a `create_business`, recarga las membresías, activa el UUID devuelto y entra al Resumen.
 - El formulario ofrece `COP` y `America/Bogota` como valores iniciales, además de opciones comunes como `DOP` y `America/Santo_Domingo`.
 - `app/tests/onboarding-flow.mjs` registra y confirma un usuario nuevo, crea el negocio desde la UI y verifica directamente que existan la membresía `OWNER`, las dos categorías base y las tres secuencias documentales.
+- `app/tests/business-switcher.mjs` crea temporalmente un segundo negocio, alterna ambos desde escritorio y móvil, comprueba el contexto visible y el cierre de sesión, y elimina el fixture al finalizar.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Todo pasó después de F1.3:
+Validaciones vigentes al completar F1.4:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
+- `npm run app:test:business-switcher`: dos negocios, cambio desde Inventario al Resumen, contexto visible actualizado, versión móvil y cierre de sesión.
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
 - `npm run db:test`: 36 pruebas SQL y 100 códigos concurrentes únicos.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F1.4
+## Próximo trabajo: F1.5
 
 Implementar:
 
-1. Convertir el control al pie de la sidebar en un selector con todas las membresías del usuario y el negocio activo marcado.
-2. Cambiar el negocio activo, limpiar los caches dependientes del tenant y volver al Resumen.
-3. Mantener la acción "Crear otro negocio" enlazada a `/onboarding`.
-4. Incorporar "Cerrar sesión" y limpiar el estado de autenticación y negocio al salir.
-5. Añadir una prueba con dos negocios que confirme el cambio completo de contexto y la ausencia de datos del negocio anterior.
+1. Implementar en `/ajustes` la edición de los datos del negocio activo.
+2. Añadir la subida del logo del negocio a Supabase Storage con sus políticas de acceso.
+3. Implementar la edición de los datos de la cuenta.
+4. Añadir el cambio de contraseña para una sesión autenticada.
+5. Validar permisos por rol y cubrir los flujos principales con pruebas automatizadas.
 
 ## Diseño pendiente
 
