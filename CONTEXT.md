@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F1.2.
+Actualizado: 26 de agosto de 2026, después de completar F1.3.
 
 ## Preferencias del usuario
 
@@ -25,8 +25,9 @@ Completado y versionado:
 | Decisión UI | `5292194` | Migración a PrimeVue 4 MIT |
 | F1.1 | `ef6a1cd` | Registro, login y recuperación de contraseña |
 | F1.2 | `66b2ec2` | Middleware de sesión y validación del negocio activo |
+| F1.3 | `76b673e` | Onboarding real para crear y activar un negocio |
 
-La siguiente tarea del `PLAN.md` es **F1.3 · Onboarding "Crear negocio"**.
+La siguiente tarea del `PLAN.md` es **F1.4 · Selector de negocio**.
 
 ## Stack instalado
 
@@ -56,6 +57,8 @@ npm run app:typecheck
 npm run app:build
 npm --prefix app run smoke
 npm run app:test:auth
+npm run app:test:onboarding
+npm run app:test:session-business
 npm run db:test
 npm run db:types
 ```
@@ -76,29 +79,33 @@ npm run db:types
 - `app/app/middleware/business.ts` carga las membresías y envía a onboarding cuando no existe un negocio válido.
 - `app/app/stores/business.ts` conserva `cashi.active-business-id` en `localStorage`, valida el UUID mediante una consulta protegida por RLS y expone el negocio/membresía activos.
 - La sidebar ya muestra el nombre, las iniciales y el rol del negocio activo; el selector completo corresponde a F1.4.
+- `/onboarding` valida nombre, moneda y zona horaria; llama a `create_business`, recarga las membresías, activa el UUID devuelto y entra al Resumen.
+- El formulario ofrece `COP` y `America/Bogota` como valores iniciales, además de opciones comunes como `DOP` y `America/Santo_Domingo`.
+- `app/tests/onboarding-flow.mjs` registra y confirma un usuario nuevo, crea el negocio desde la UI y verifica directamente que existan la membresía `OWNER`, las dos categorías base y las tres secuencias documentales.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Todo pasó después de F1.1:
+Todo pasó después de F1.3:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
+- `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
 - `npm run db:test`: 36 pruebas SQL y 100 códigos concurrentes únicos.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F1.3
+## Próximo trabajo: F1.4
 
 Implementar:
 
-1. Sustituir el placeholder de `/onboarding` por el formulario de nombre, moneda y zona horaria.
-2. Validar el formulario y llamar a `create_business(p_name, p_currency, p_timezone)`.
-3. Recargar las membresías, activar el UUID devuelto y entrar al Resumen.
-4. Conservar el aviso de seguridad cuando F1.2 detecta un UUID manipulado.
-5. Probar que el negocio, la membresía OWNER, las categorías base y las secuencias quedan disponibles para el usuario nuevo.
+1. Convertir el control al pie de la sidebar en un selector con todas las membresías del usuario y el negocio activo marcado.
+2. Cambiar el negocio activo, limpiar los caches dependientes del tenant y volver al Resumen.
+3. Mantener la acción "Crear otro negocio" enlazada a `/onboarding`.
+4. Incorporar "Cerrar sesión" y limpiar el estado de autenticación y negocio al salir.
+5. Añadir una prueba con dos negocios que confirme el cambio completo de contexto y la ausencia de datos del negocio anterior.
 
 ## Diseño pendiente
 
