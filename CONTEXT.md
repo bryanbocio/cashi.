@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar S4.2. **La Fase 3 está terminada** y la Fase 4 ya tiene listo el backend de Gastos y Fiados.
+Actualizado: 26 de agosto de 2026, después de completar F4.1. **La Fase 3 está terminada** y la Fase 4 ya tiene la vista de Gastos y el backend de Fiados.
 
 ## Preferencias del usuario
 
@@ -44,8 +44,9 @@ Completado y versionado:
 | S7.1 | `8d7088a` | Rangos de calendario por zona horaria del negocio |
 | S4.1 | `fc6b530` | CRUD, filtros y distribución por categoría de Gastos |
 | S4.2 | `50eb766` | Vista de deuda y abonos seguros de Fiados |
+| F4.1 | `8907ccc` | Vista Gastos con resumen, filtros, alta y versión móvil |
 
-La siguiente tarea del `PLAN.md` es **F4.1 · Vista Gastos**. Después sigue F4.2 (interfaz de Fiados).
+La siguiente tarea del `PLAN.md` es **F4.2 · Vista Fiados**.
 
 ## Qué está construido y qué no
 
@@ -54,17 +55,18 @@ Vistas conectadas a datos reales:
 - `/login`, `/registro`, `/recuperar`, `/nueva-contrasena`, `/onboarding`
 - `/inventario` — listado, filtros, alta, import CSV y panel de edición
 - `/caja` — buscador, frecuentes, carrito y cobro
+- `/gastos` — resumen mensual, distribución, filtros y alta
 - `/ajustes` — negocio, logo, cuenta y contraseña
 
 Todavía son `PagePlaceholder`, sin datos:
 
-- `/` (Resumen), `/cotizaciones`, `/fiados`, `/gastos`, `/compras`, `/reportes`
+- `/` (Resumen), `/cotizaciones`, `/fiados`, `/compras`, `/reportes`
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
-(S3.2), `period_range` (S7.1), el CRUD/agregado de Gastos (S4.1), `v_credits`
+(S3.2), `period_range` (S7.1), `v_credits`
 y `register_payment` (S4.2). La Caja registra ventas pero no hay pantalla para
 verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
-la Fase 8. `/gastos` y `/fiados` siguen provisionales hasta F4.1 y F4.2.
+la Fase 8. `/fiados` sigue provisional hasta F4.2.
 
 ## Convenciones de trabajo
 
@@ -106,6 +108,7 @@ npm --prefix app run smoke
 npm run app:test:auth
 npm run app:test:business-switcher
 npm run app:test:caja
+npm run app:test:expenses
 npm run app:test:inventory
 npm run app:test:inventory-import
 npm run app:test:onboarding
@@ -206,7 +209,13 @@ npm run db:types
 - La variante determinista `private.period_range_at(..., p_now)` existe solo para pruebas de bordes. No exponerla al cliente ni duplicar el cálculo de fechas en las métricas.
 - El CRUD de Gastos se hace directamente sobre `expense` y queda protegido por las políticas RLS existentes. Un trigger recorta espacios de `concept` y `category` antes de guardar.
 - `expense_category_totals(p_business, p_from, p_to, p_category)` devuelve `category`, `total_amount`, `expense_count` y `share_pct`. Usa rango local de fechas `[from, to)`; el filtro de categoría es opcional y no distingue mayúsculas, pero el porcentaje siempre se calcula contra todo el rango.
-- Para F4.1, las categorías serán opciones predefinidas más **Otro**. Al elegir Otro se debe habilitar el texto del concepto del gasto; no convertir `expense.category` en enum ni en FK sin consultarlo nuevamente.
+- F4.1 usa categorías predefinidas más **Otro**. Al elegir Otro se habilita el texto del concepto del gasto; no convertir `expense.category` en enum ni en FK sin consultarlo nuevamente.
+- `/gastos` usa `period_range` para obtener el mes según `business.timezone`; los límites se convierten a fechas de calendario antes de consultar `expense_category_totals` y la tabla.
+- El resumen mensual conserva el lenguaje de los archivos de diseño: total a la izquierda, distribución por barras y acción de alta. La lista usa tabla en escritorio y tarjetas en móvil.
+- Los filtros de fecha son inclusivos para el usuario. Como `spent_at` es `date`, la consulta traduce el final a `< día siguiente`, evitando perder gastos del último día.
+- Las categorías predefinidas viven en `app/app/utils/expenses.ts`: Arriendo, Servicios, Publicidad, Nómina, Insumos, Domicilios, Transporte, Impuestos y Otro. El concepto se conserva para todas las categorías y **Otro** muestra ayuda específica para texto libre.
+- El seed incluye cinco gastos del mes local del negocio demo, dos de ellos recurrentes. Las fechas se calculan al ejecutar el seed para que la pantalla nunca nazca vacía por el paso del tiempo.
+- `app/tests/expenses-flow.mjs` comprueba el total y distribución, filtros combinables, alta de Otro, fecha predeterminada según la zona del negocio, persistencia en PostgreSQL y tarjetas móviles con objetivos táctiles de 44 px. El fixture creado se elimina al terminar.
 - `v_credits` devuelve solo clientes con deuda positiva: `customer_id`, `business_id`, nombre/teléfono, `total_credit`, `total_paid`, `debt`, cantidad de ventas fiadas, vencimiento pendiente más antiguo, bandera/días de mora y últimas fechas de venta y abono.
 - La deuda suma únicamente ventas `CREDIT` con estado `CONFIRMED`; las ventas anuladas y las ventas por otros métodos no cuentan. Un cliente totalmente pagado desaparece de la vista.
 - Los abonos generales del cliente cubren primero las ventas con `due_date` más antiguo. Así, una factura vieja ya cubierta no mantiene al cliente marcado como vencido por error. Las ventas sin vencimiento quedan al final y nunca se marcan vencidas por sí mismas.
@@ -217,12 +226,13 @@ npm run db:types
 
 ## Última validación
 
-Validaciones vigentes al completar S4.2:
+Validaciones vigentes al completar F4.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. En móvil comprueba que la barra de cobro queda anclada abajo, que el botón de escritorio no está visible y que ningún control baja de 44 px. Borra las ventas y restaura el stock del seed.
+- `npm run app:test:expenses`: total mensual y distribución por categoría, filtro de categoría, rango de un solo día, alta real con Otro y recurrente, persistencia en PostgreSQL, actualización inmediata del resumen y tarjetas móviles. No deja fixtures.
 - `npm run app:test:inventory-import`: alta manual con categoría y proveedor nuevos, aviso de SKU repetido, importación con una fila válida y una con decimales, y comprobación en PostgreSQL de lo guardado. Limpia sus fixtures al terminar.
 - `npm run app:test:inventory`: listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, ajuste de existencias con su movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
@@ -236,16 +246,19 @@ Validaciones vigentes al completar S4.2:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F4.1
+## Próximo trabajo: F4.2
 
-Vista Gastos:
+Vista Fiados:
 
-1. Total del mes y distribución por categoría usando `expense_category_totals`.
-2. Lista con filtros de rango y categoría; tabla en escritorio y tarjetas en móvil.
-3. Modal de alta conectado al CRUD de `expense`.
-4. Categorías predefinidas más **Otro**; al elegir Otro se habilita el concepto escrito por el usuario.
-5. Los archivos visuales citados por el `PLAN.md` siguen ausentes. F4.1 ya es una decisión visual importante, así que conviene pedirlos antes de construirla.
+1. Tarjetas de resumen con el total por cobrar y los vencidos.
+2. Lista de deudores basada en `v_credits`, con estado y datos de contacto.
+3. Modal conectado a `register_payment` con monto y método de pago.
+4. Acción **Abonar todo** que precarga exactamente la deuda actual.
+5. Aceptación: después de abonar todo, el cliente desaparece de la lista y el total por cobrar baja exactamente el mismo monto.
 
-## Diseño pendiente
+## Fuentes de diseño disponibles
 
-El `PLAN.md` menciona `Prototipo Interactivo.dc.html` y `Mockups Inventario y Ganancias.dc.html`, pero esos archivos no están presentes actualmente en el repositorio. La UI base y F1.1 se construyeron con los tokens descritos en el plan. Antes de decisiones visuales importantes, pedir esos archivos al usuario.
+- `Prototipo Interactivo.dc.html` — comportamiento, jerarquía, tabla/tarjetas y modales.
+- `Mockups Inventario y Ganancias.dc.html` — composición visual, barras de distribución y tratamiento de estados recurrentes.
+
+Ambos archivos están versionados desde F4.1 y son la fuente visual del `PLAN.md`. Consultarlos antes de tomar decisiones visuales en las siguientes vistas.
