@@ -52,8 +52,11 @@ se incorporarán en S0.2.
 npm run supabase:start
 npm run supabase:status
 npm run db:reset
+npm run db:types
 npm run db:test
 npm run supabase:stop
 ```
 
 Supabase Studio queda disponible por defecto en `http://127.0.0.1:54323`.
+
+Después de cambiar el esquema, regenera el cliente tipado con `npm run db:types`.

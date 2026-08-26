@@ -29,7 +29,7 @@ export default defineNuxtConfig({
   },
   supabase: {
     redirect: false,
-    types: false,
+    types: '~/types/database.ts',
   },
   primevue: {
     components: {
@@ -46,6 +46,7 @@ export default defineNuxtConfig({
         'SelectButton',
         'Skeleton',
         'Tag',
+        'Toast',
       ],
     },
     options: {

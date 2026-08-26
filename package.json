@@ -11,6 +11,7 @@
     "db:test": "npm run db:test:sql && npm run db:test:concurrency",
     "db:test:sql": "supabase test db",
     "db:test:concurrency": "node supabase/tests/next-doc-code.concurrent.cjs",
+    "db:types": "supabase gen types typescript --local --schema public > app/app/types/database.ts",
     "app:dev": "npm --prefix app run dev",
     "app:typecheck": "npm --prefix app run typecheck",
     "app:build": "npm --prefix app run build"
