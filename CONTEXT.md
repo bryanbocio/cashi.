@@ -43,6 +43,33 @@ Completado y versionado:
 
 La siguiente tarea del `PLAN.md` es **S4.1 · Gastos**, que abre la Fase 4. También están libres S7.1 (`period_range`) y toda la Fase 5 (compras), que depende de S2.2, ya hecha.
 
+## Qué está construido y qué no
+
+Vistas conectadas a datos reales:
+
+- `/login`, `/registro`, `/recuperar`, `/nueva-contrasena`, `/onboarding`
+- `/inventario` — listado, filtros, alta, import CSV y panel de edición
+- `/caja` — buscador, frecuentes, carrito y cobro
+- `/ajustes` — negocio, logo, cuenta y contraseña
+
+Todavía son `PagePlaceholder`, sin datos:
+
+- `/` (Resumen), `/cotizaciones`, `/fiados`, `/gastos`, `/compras`, `/reportes`
+
+Backend disponible y **sin interfaz que lo use**: `void_sale` y `v_sale_detail`
+(S3.2). La Caja registra ventas pero no hay pantalla para verlas ni anularlas;
+eso llega con F7.3 (Reportes) y el visor de documentos de la Fase 8.
+
+## Convenciones de trabajo
+
+- Una tarea, un commit: `[ID] título en español`, y a continuación un
+  `docs: actualiza contexto tras ID` con este archivo. Ver `git log`.
+- Toda migración es aditiva y versionada; no se edita una ya aplicada.
+- Ninguna tabla o vista nueva se da por terminada sin su política y su prueba de
+  aislamiento entre negocios.
+- Toda regla de la §2 del `PLAN.md` que se toque necesita prueba. Dinero y
+  periodos no se dan por buenos sin test.
+
 ## Stack instalado
 
 - Nuxt `4.5.2`, Vue `3.5.41`, TypeScript `5.9.3`.
@@ -119,10 +146,9 @@ npm run db:types
 - Reglas aplicadas: stock bajo es `stock < min_stock` estricto (4/4 no es bajo); el margen es `(price − cost) / price` con dos decimales y `null` cuando `price = 0`; margen estrecho es margen bruto por debajo del **20 %**, y también un producto con costo pero sin precio.
 - Los filtros del inventario se aplican desde el cliente con PostgREST: `or=(name.ilike.*q*,sku.ilike.*q*)` para la búsqueda, `eq` para categoría y proveedor, `is_low_stock=eq.true` e `is_thin_margin=eq.true` para las banderas. Hay índices `product(business_id, category_id)` y `product(business_id, supplier_id)`.
 - El seed incluye `ACC-004 · Bolsa de regalo` (16 % de margen) para que el filtro de margen bajo tenga datos reales.
-- No se añadió índice trigram: con el catálogo acotado por `business_id` el `ilike` es barato. Reevaluar en S3.3 si la búsqueda de caja lo necesita.
 - `adjust_stock(p_product, p_delta, p_reason)` (migración `20260826160000_adjust_stock.sql`) corrige existencias y escribe el movimiento `ADJUST` en la misma transacción. Devuelve `jsonb` con `product_id`, `previous_stock`, `stock`, `qty_delta`, `reason` y `movement_id`.
 - La suma se resuelve dentro del `update` (`stock = stock + p_delta`), no con una lectura previa, para que dos ajustes simultáneos no se pisen.
-- El motivo es **obligatorio**: sin él el histórico de movimientos no sirve para auditar. La UI de F2.1 debería ofrecer motivos rápidos (conteo físico, merma, devolución, corrección).
+- El motivo es **obligatorio**: sin él el histórico de movimientos no sirve para auditar. El panel del Inventario ofrece cuatro motivos rápidos (conteo físico, merma, devolución, corrección) más texto libre.
 - El stock resultante puede quedar negativo, coherente con que la app tolera vender sin existencias.
 - Se cerró la puerta de atrás: `authenticated` ya no puede hacer `update` de `product.stock` (conserva `name`, `sku`, `category_id`, `supplier_id`, `cost`, `price`, `min_stock`, `active`) ni escribir en `stock_movement`. Al intentarlo PostgREST responde `403 / 42501`. Si una tarea futura necesita mover stock, va por una función `security definer`, nunca por un update.
 - `stock_movement` ganó la columna `reason`, nula en los movimientos que generen ventas y compras.
