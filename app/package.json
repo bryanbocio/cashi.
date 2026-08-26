@@ -1,0 +1,38 @@
+{
+  "name": "app",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build --dotenv ../.env",
+    "dev": "nuxt dev --dotenv ../.env",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck --dotenv ../.env",
+    "smoke": "node tests/smoke.mjs"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@fontsource/space-grotesk": "^5.3.0",
+    "@nuxtjs/supabase": "^2.0.10",
+    "@pinia/nuxt": "^1.0.2",
+    "@primeuix/themes": "^3.0.0",
+    "nuxt": "^4.5.2",
+    "pinia": "^4.0.3",
+    "primevue": "^5.0.1",
+    "tailwindcss": "^4.3.3",
+    "tailwindcss-primeui": "^0.6.1",
+    "vue": "^3.5.41",
+    "vue-router": "^5.2.0"
+  },
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.126",
+    "@primevue/nuxt-module": "^5.0.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "playwright-core": "^1.62.1",
+    "typescript": "^5.9.3",
+    "unplugin-icons": "^23.0.1",
+    "vue-tsc": "^3.3.11"
+  }
+}

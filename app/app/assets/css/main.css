@@ -1,0 +1,83 @@
+@import "tailwindcss";
+@import "tailwindcss-primeui";
+
+@theme {
+  --color-paper: #fbfaf6;
+  --color-panel: #ffffff;
+  --color-surface: #f3f0e9;
+  --color-ink: #191817;
+  --color-muted: #6b6864;
+  --color-subtle: #8c8880;
+  --color-accent: #1f5aff;
+  --color-positive: #0f7b6c;
+  --color-negative: #c2410c;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "IBM Plex Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  --breakpoint-tablet: 47.5rem;
+  --breakpoint-wide: 70rem;
+}
+
+:root {
+  --color-line: rgba(25, 24, 23, 0.1);
+  --sidebar-width: 198px;
+  --shadow-raised: 0 18px 50px rgba(25, 24, 23, 0.12);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    min-width: 320px;
+    min-height: 100%;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background: var(--color-paper);
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 3px solid rgba(31, 90, 255, 0.35);
+    outline-offset: 2px;
+  }
+}
+
+@media (width >= 760px) and (width <= 1120px) {
+  :root {
+    --sidebar-width: 170px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+.p-component {
+  font-family: var(--font-sans);
+}

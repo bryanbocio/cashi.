@@ -20,8 +20,19 @@ npm run supabase:start
 npm run supabase:status
 ```
 
-Copia en `.env` el valor de `API URL` como `SUPABASE_URL` y el valor de
-`anon key` como `SUPABASE_ANON_KEY`.
+Copia en `.env` el valor de `API URL` como `NUXT_PUBLIC_SUPABASE_URL` y el valor
+de `Publishable key` como `NUXT_PUBLIC_SUPABASE_KEY`.
+
+## Aplicación web
+
+El frontend usa Nuxt 4, Tailwind CSS 4, PrimeVue 5, Pinia y el módulo oficial
+de Supabase para Nuxt.
+
+```powershell
+npm run app:dev
+npm run app:typecheck
+npm run app:build
+```
 
 ## Reiniciar la base local
 

@@ -5,7 +5,7 @@ Documento único de referencia. Está escrito para que un agente (Claude Code o 
 
 ## Stack
 
-- **Frontend**: Nuxt 3 (Vue 3, Composition API, TypeScript), SSR desactivado en las vistas privadas (`ssr: false` por ruta o modo SPA para el panel) y despliegue en Vercel o Netlify.
+- **Frontend**: Nuxt 4 (Vue 3, Composition API, TypeScript), Tailwind CSS 4 y PrimeVue 5; SSR desactivado en las vistas privadas (`ssr: false` por ruta o modo SPA para el panel) y despliegue en Vercel o Netlify.
 - **Backend**: **Supabase** — Postgres + Auth + RLS + Storage + Edge Functions (Deno). No hay servidor propio.
 - **Acceso a datos**: `@nuxtjs/supabase` (cliente tipado con `supabase gen types typescript`). Reglas de negocio en Postgres (funciones `plpgsql` y RPC), nunca duplicadas en el cliente.
 - **Migraciones**: Supabase CLI (`supabase/migrations/*.sql`), versionadas en el repo. Nada de cambios a mano en el panel.
@@ -202,7 +202,7 @@ Ocho vistas privadas + las de autenticación. Navegación lateral. En escritorio
 - Acento `#1f5aff` (acciones), positivo `#0f7b6c`, negativo `#c2410c`. La cifra principal del periodo va sobre bloque oscuro `#191817`.
 - Radio 6–8 px en controles, 8–10 px en tarjetas. Densidad alta: cuerpo 12,5 px, etiquetas 9,5 px en mayúsculas con `letter-spacing`.
 - Verde para mejora, terracota para deterioro. En gastos la lógica se invierte (bajar es bueno).
-- Sin librerías de UI de terceros: los componentes se construyen con estos tokens. Sí utilidades (date-fns, zod, unplugin-icons).
+- **UI y estilos**: Tailwind CSS 4 para layout, responsive y utilidades; PrimeVue 5 para componentes accesibles, con un preset propio que aplica estos tokens. Sí utilidades adicionales (date-fns, zod, unplugin-icons).
 
 ---
 
@@ -213,17 +213,19 @@ supabase/
   migrations/          0001_init.sql, 0002_rls.sql, 0003_functions.sql, ...
   functions/           document-pdf/, import-products/
   seed.sql             negocio demo con 8 productos, 5 clientes, 2 proveedores
-app/  (Nuxt)
-  composables/         useBusiness, useMetrics, useCart, useMoney, usePeriod
-  stores/              auth.ts, business.ts, cart.ts
-  layouts/             default.vue (sidebar + cajón móvil), auth.vue
-  middleware/          auth.global.ts, business.ts
-  pages/               index(resumen), caja, cotizaciones, inventario,
-                       fiados, gastos, compras, reportes, ajustes,
-                       login, registro, recuperar, onboarding
-  components/          ui/ (Button, Chip, Segmented, Modal, Drawer, Toast, DataTable, CardList),
-                       kpi/, caja/, documento/
-  types/database.ts    generado por supabase gen types
+app/  (proyecto Nuxt)
+  nuxt.config.ts
+  app/                  directorio fuente de Nuxt 4
+    composables/        useBusiness, useMetrics, useCart, useMoney, usePeriod
+    stores/             auth.ts, business.ts, cart.ts
+    layouts/            default.vue (sidebar + cajón móvil), auth.vue
+    middleware/         auth.global.ts, business.ts
+    pages/              index(resumen), caja, cotizaciones, inventario,
+                        fiados, gastos, compras, reportes, ajustes,
+                        login, registro, recuperar, onboarding
+    components/         ui/ (Button, Chip, Segmented, Modal, Drawer, Toast, DataTable, CardList),
+                        kpi/, caja/, documento/
+    types/database.ts   generado por supabase gen types
 ```
 
 Regla: cada lista larga se implementa **una vez** como `DataTable` (escritorio) + `CardList` (móvil) y las vistas solo declaran columnas y plantilla de tarjeta.
@@ -236,11 +238,11 @@ Formato: `ID · título — entregable — criterio de aceptación`. `dep:` = de
 
 ### Fase 0 — Cimientos
 
-- **S0.1 · Proyecto Supabase + CLI** — `supabase init`, entorno local con Docker, script de reset, `.env.example` con `SUPABASE_URL` y `SUPABASE_ANON_KEY`. *Aceptación*: `supabase db reset` corre en limpio y documentado en el README.
+- **S0.1 · Proyecto Supabase + CLI** — `supabase init`, entorno local con Docker, script de reset, `.env.example` con `NUXT_PUBLIC_SUPABASE_URL` y `NUXT_PUBLIC_SUPABASE_KEY`. *Aceptación*: `supabase db reset` corre en limpio y documentado en el README.
 - **S0.2 · Migración inicial** — todas las tablas de §3 con tipos, constraints e índices, más triggers de `updated_at`. dep: S0.1. *Aceptación*: reset desde cero sin errores; `seed.sql` carga el negocio demo.
 - **S0.3 · RLS y helper `is_member`** — políticas de §3 en todas las tablas, incluidas las hijas por `exists`. dep: S0.2. *Aceptación*: test SQL (pgTAP o script) que con el JWT del usuario A no devuelve ni una fila del negocio de B, en cada tabla.
 - **S0.4 · `create_business` + trigger de `profile` + `doc_sequence`** — alta de negocio con membresía OWNER, categorías base y secuencias. dep: S0.3. *Aceptación*: llamar a la RPC como usuario nuevo deja el negocio visible solo para él; `next_doc_code` no repite códigos con 100 llamadas concurrentes.
-- **F0.1 · Esqueleto Nuxt** — Nuxt 3 + TS + `@nuxtjs/supabase` + Pinia, layouts `default` y `auth`, tokens de §6 como variables CSS, tipografías autohospedadas, componentes base `ui/`. *Aceptación*: las 9 rutas privadas existen con placeholder; el cajón móvil abre y cierra por debajo de 760 px; sin errores de hidratación.
+- **F0.1 · Esqueleto Nuxt** — Nuxt 4 + TS + Tailwind CSS 4 + PrimeVue 5 + `@nuxtjs/supabase` + Pinia, layouts `default` y `auth`, tokens de §6, tipografías autohospedadas, componentes base `ui/`. *Aceptación*: las 9 rutas privadas existen con placeholder; el cajón móvil abre y cierra por debajo de 760 px; sin errores de hidratación.
 - **F0.2 · Cliente tipado** — `supabase gen types typescript` en un script npm, wrapper de errores que convierte fallos de RPC en toasts legibles. dep: S0.2, F0.1.
 
 ### Fase 1 — Cuentas y negocios
