@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F1.4.
+Actualizado: 26 de agosto de 2026, después de completar F1.5.
 
 ## Preferencias del usuario
 
@@ -27,8 +27,9 @@ Completado y versionado:
 | F1.2 | `66b2ec2` | Middleware de sesión y validación del negocio activo |
 | F1.3 | `76b673e` | Onboarding real para crear y activar un negocio |
 | F1.4 | `d17e319` | Selector de negocio, cambio de contexto y cierre de sesión |
+| F1.5 | `70741ab` | Ajustes de negocio, logo privado, cuenta y contraseña |
 
-La siguiente tarea del `PLAN.md` es **F1.5 · Ajustes**.
+La siguiente tarea del `PLAN.md` es **S2.1 · Consultas de producto**.
 
 ## Stack instalado
 
@@ -60,6 +61,7 @@ npm --prefix app run smoke
 npm run app:test:auth
 npm run app:test:business-switcher
 npm run app:test:onboarding
+npm run app:test:settings
 npm run app:test:session-business
 npm run db:test
 npm run db:types
@@ -83,15 +85,21 @@ npm run db:types
 - `app/app/components/BusinessSwitcher.vue` lista todas las membresías, marca el negocio activo y funciona tanto en la sidebar de escritorio como en el encabezado móvil.
 - Al alternar negocios se actualiza `cashi.active-business-id`, se limpian los caches de Nuxt y se vuelve al Resumen. Las vistas provisionales ya muestran el negocio real en vez de un nombre fijo.
 - El selector contiene "Crear otro negocio" y "Cerrar sesión"; al salir se eliminan la sesión de Supabase, el estado Pinia y el negocio guardado.
+- `/ajustes` permite al propietario editar nombre, NIT, teléfono, dirección, moneda y zona horaria del negocio activo. Otros roles ven esos controles deshabilitados según la política RLS existente.
+- Los datos personales (`full_name`, teléfono) se guardan en `profile` y en metadata de Auth; el correo se muestra como dato de acceso de solo lectura.
+- El cambio de contraseña usa la sesión autenticada de Supabase y exige al menos 8 caracteres con confirmación coincidente.
+- El bucket privado `logos` admite únicamente `{business_id}/logo.png`, PNG de hasta 2 MiB. Sus políticas de lectura y escritura validan la membresía; la UI descarga el archivo autenticado y usa una URL local, nunca una URL pública.
+- Las opciones de moneda y zona horaria viven en `app/app/utils/business-options.ts` y se comparten entre onboarding y Ajustes.
 - `/onboarding` valida nombre, moneda y zona horaria; llama a `create_business`, recarga las membresías, activa el UUID devuelto y entra al Resumen.
 - El formulario ofrece `COP` y `America/Bogota` como valores iniciales, además de opciones comunes como `DOP` y `America/Santo_Domingo`.
 - `app/tests/onboarding-flow.mjs` registra y confirma un usuario nuevo, crea el negocio desde la UI y verifica directamente que existan la membresía `OWNER`, las dos categorías base y las tres secuencias documentales.
 - `app/tests/business-switcher.mjs` crea temporalmente un segundo negocio, alterna ambos desde escritorio y móvil, comprueba el contexto visible y el cierre de sesión, y elimina el fixture al finalizar.
+- `app/tests/settings-flow.mjs` registra un usuario temporal, crea y edita su negocio, sube un PNG real, actualiza el perfil y la contraseña, vuelve a iniciar sesión y elimina todos sus fixtures.
 - El seed local incluye `onboarding@cashi.local` sin negocio y `other@cashi.local` con un tenant ajeno para las pruebas automatizadas. Las credenciales están documentadas junto a esos fixtures en `supabase/seed.sql`.
 
 ## Última validación
 
-Validaciones vigentes al completar F1.4:
+Validaciones vigentes al completar F1.5:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -99,19 +107,20 @@ Validaciones vigentes al completar F1.4:
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
 - `npm run app:test:business-switcher`: dos negocios, cambio desde Inventario al Resumen, contexto visible actualizado, versión móvil y cierre de sesión.
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
+- `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 36 pruebas SQL y 100 códigos concurrentes únicos.
+- `npm run db:test`: 53 pruebas SQL y 100 códigos concurrentes únicos.
+- `supabase db lint` no reporta problemas propios; muestra solo avisos del esquema interno de Supabase Storage.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F1.5
+## Próximo trabajo: S2.1
 
 Implementar:
 
-1. Implementar en `/ajustes` la edición de los datos del negocio activo.
-2. Añadir la subida del logo del negocio a Supabase Storage con sus políticas de acceso.
-3. Implementar la edición de los datos de la cuenta.
-4. Añadir el cambio de contraseña para una sesión autenticada.
-5. Validar permisos por rol y cubrir los flujos principales con pruebas automatizadas.
+1. Crear la vista `v_product_stats` con margen, valor de inventario y bandera de stock bajo.
+2. Implementar filtros por búsqueda `q`, categoría, proveedor, stock bajo (`low`) y margen estrecho (`thin_margin`).
+3. Mantener el aislamiento por `business_id` mediante RLS o una función de consulta segura.
+4. Añadir pruebas de cálculos, combinaciones de filtros y aislamiento entre negocios.
 
 ## Diseño pendiente
 
