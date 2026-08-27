@@ -445,6 +445,13 @@ export type Database = {
             referencedRelation: "purchase_order"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "purchase_line_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "v_purchase_orders"
+            referencedColumns: ["id"]
+          },
         ]
       }
       purchase_order: {
@@ -952,6 +959,38 @@ export type Database = {
           },
         ]
       }
+      v_purchase_orders: {
+        Row: {
+          business_id: string | null
+          code: string | null
+          created_at: string | null
+          expected_at: string | null
+          id: string | null
+          line_count: number | null
+          received_at: string | null
+          status: Database["public"]["Enums"]["purchase_status"] | null
+          supplier_id: string | null
+          supplier_name: string | null
+          total_cost: number | null
+          total_units: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_sale_detail: {
         Row: {
           business_id: string | null
@@ -1014,6 +1053,10 @@ export type Database = {
           p_lines: Json
           p_method: string
         }
+        Returns: Json
+      }
+      create_suggested_purchase_order: {
+        Args: { p_business: string }
         Returns: Json
       }
       credit_dashboard_summary: {
