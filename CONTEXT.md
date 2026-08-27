@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar S7.2. **Las Fases 3, 4, 5 y 6 están terminadas** y el resumen financiero de la Fase 7 ya está disponible.
+Actualizado: 27 de agosto de 2026, después de completar S7.3. **Las Fases 3, 4, 5 y 6 están terminadas** y toda la capa de datos de la Fase 7 (S7.1, S7.2 y S7.3) ya está disponible.
 
 ## Preferencias del usuario
 
@@ -54,8 +54,9 @@ Completado y versionado:
 | S6.1 | `2df48e1` | Creación de cotizaciones y listados protegidos de resumen/líneas |
 | S6.2 | `3b93b3c` | Conversión idempotente de cotizaciones a venta o fiado |
 | F6.1 | `5b8f314` | Guardar desde Caja, vigencia efectiva y vista adaptable de Cotizaciones |
+| S7.3 | `8a61087` | Series diarias, rentabilidad por producto y categoría, y alertas operativas |
 
-La siguiente tarea pendiente del `PLAN.md` es **S7.3 · métricas diarias, productos, categorías y alertas**.
+La siguiente tarea pendiente del `PLAN.md` es **F7.1 · Vista Resumen**.
 
 ## Qué está construido y qué no
 
@@ -75,7 +76,10 @@ Todavía son `PagePlaceholder`, sin datos:
 - `/` (Resumen), `/reportes`
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
-(S3.2), `period_range` (S7.1) y `metrics_summary` (S7.2). La Caja registra ventas pero no hay pantalla para
+(S3.2), `period_range` (S7.1), `metrics_summary` (S7.2) y `metrics_daily`,
+`metrics_products`, `metrics_categories` y `metrics_alerts` (S7.3). La capa de
+datos de la Fase 7 está completa; falta toda su interfaz (F7.1, F7.2 y F7.3).
+La Caja registra ventas pero no hay pantalla para
 verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
 la Fase 8. La acción Ver/PDF de Cotizaciones informa que el visor llegará en F8.1;
 no simula una descarga antes de que exista `document-pdf`.
@@ -288,10 +292,19 @@ npm run db:types
 - `revenue_change` y `net_profit_change` comparan montos en porcentaje. `gross_margin`, `expense_ratio` y `net_margin` describen el periodo actual; los cambios de margen/proporción se entregan en puntos porcentuales. Un divisor cero produce `0`, siguiendo el prototipo y manteniendo completo el contrato JSON.
 - `private.metrics_summary_at` comparte la implementación con la RPC pero acepta un reloj explícito para pruebas deterministas. No tiene permisos para `authenticated`; `public.metrics_summary` usa `current_timestamp`, valida membresía y es la única entrada cliente.
 - `supabase/tests/metrics_summary.test.sql` aporta 36 casos sobre límites locales, mes anterior, descuentos, anulaciones, costo congelado, gastos, cartera global, cliente saldado, coherencia de márgenes, periodo vacío, sesión, permisos y aislamiento.
+- `metrics_daily(p_business, p_days)` devuelve una serie continua de días locales terminada en hoy, entre 1 y 366 días, con `revenue`, `gross_profit` y `sales_count`; rellena con cero los días sin ventas confirmadas.
+- `metrics_products(p_business, p_period, p_month_offset, p_limit)` y `metrics_categories(p_business, p_period, p_month_offset)` obtienen su rango de `private.period_range_at`, **el mismo de `metrics_summary`**. Devuelven `range.from`, `range.to` y `range.label` para que la interfaz titule el periodo sin recalcularlo. El límite de productos va de 1 a 100 y se aplica después de agregar y ordenar.
+- Las tres comparten `private.metric_sale_lines`, que reparte el descuento de cada venta **por línea** en proporción a su ingreso bruto: parte entera por `floor` y el residuo —siempre menor que el número de líneas— por mayor fracción y luego por `line_id`. Así la suma de líneas reconcilia exactamente con `metrics_summary`, sin céntimos perdidos. Hay pruebas que comparan ambas sumas.
+- El histórico sobrevive al producto: las líneas se agrupan por `product_key`, que es el `product_id` o, si el producto fue borrado, su nombre y categoría congelados. Un producto eliminado conserva su nombre y aparece con `product_id` nulo.
+- `metrics_alerts(p_business)` agrupa cuatro tipos en orden operativo fijo —`LOW_STOCK`, `OVERDUE_CREDIT`, `PENDING_PURCHASE`, `THIN_MARGIN`—, cada uno con `count`, `title` en español, `target` navegable y hasta cinco `items` de detalle. Un grupo sin filas no aparece.
+- Las alertas repiten deliberadamente tres reglas ya escritas en otro sitio, porque una vista `security_invoker` invocada dentro de una función `security definer` correría como el dueño y saltaría la RLS: el reparto FIFO de abonos de `v_credits`, el umbral de margen del 20 % de `v_product_stats` y la fórmula `greatest(min_stock * 2 - stock, 1)` de `suggest_purchase`. **Si alguna de esas tres reglas cambia, hay que cambiarla también aquí.**
+- `metrics_alerts` apunta a `/inventario?filter=low` y `/inventario?filter=thin`. `/inventario` todavía no lee esos parámetros de consulta; conectarlos es parte de F7.1.
+- Cada RPC tiene su variante `private.*_at` con reloj explícito para pruebas deterministas, sin permisos para `authenticated`. Solo las cuatro funciones `public` se exponen al cliente.
+- `supabase/tests/metrics_detail.test.sql` aporta 73 casos sobre reparto del descuento, serie continua con días en cero, productos y categorías reconciliados contra `metrics_summary`, producto borrado, márgenes indefinidos, los cuatro grupos de alertas con sus bordes (vence hoy no está vencido, orden recibida excluida, producto inactivo excluido), límites de entrada, permisos y aislamiento.
 
 ## Última validación
 
-Validaciones vigentes al completar S7.2:
+Validaciones vigentes al completar S7.3:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -308,15 +321,31 @@ Validaciones vigentes al completar S7.2:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 553 pruebas SQL, incluidas 36 de `metrics_summary`, 13 de vigencia efectiva, 51 de creación/listados y 46 de conversión de cotizaciones; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, 40 cotizaciones concurrentes sin efectos contables, 20 conversiones simultáneas idempotentes, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 626 pruebas SQL, incluidas 73 de `metrics_detail` y 36 de `metrics_summary`, 13 de vigencia efectiva, 51 de creación/listados y 46 de conversión de cotizaciones; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, 40 cotizaciones concurrentes sin efectos contables, 20 conversiones simultáneas idempotentes, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S7.3
+## Próximo trabajo: F7.1
 
-Implementar `metrics_daily`, `metrics_products`, `metrics_categories` y `metrics_alerts`. Las tres métricas de rentabilidad deben compartir los mismos rangos de S7.1/S7.2; en particular, `metrics_products` no puede usar un periodo distinto al resumen. Las alertas deben cubrir stock bajo, fiados vencidos, compras sin recibir y margen estrecho.
+Construir la vista Resumen sobre `/`, que hoy es un `PagePlaceholder`. Toda la
+capa de datos ya existe y no hace falta SQL nuevo: `metrics_summary` para los
+cinco KPI con su porcentaje, `metrics_daily(14)` para la gráfica, `metrics_products`
+para la rentabilidad del periodo con `range.label` en el título, `v_sale_detail`
+para las últimas ventas y `metrics_alerts` para «Requiere atención».
+
+Puntos a resolver antes de dar F7.1 por terminada:
+
+- Las alertas deben navegar. `/inventario` necesita leer `?filter=low` y
+  `?filter=thin` para que `target` funcione; `/fiados` y `/compras` ya sirven
+  como destino.
+- El selector de periodo es F7.2, así que F7.1 puede fijar un periodo por
+  defecto, pero conviene que reciba `period` y `month_offset` como estado
+  desde el principio para no rehacer la vista después.
+- Hay que decidir con el usuario cómo se dibuja la gráfica de 14 días: el
+  prototipo la resuelve con barras en HTML/CSS, y añadir una librería de
+  gráficas sería una decisión de diseño y de dependencias.
 
 ## Fuentes de diseño disponibles
 
