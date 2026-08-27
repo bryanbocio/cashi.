@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar F7.1. **Las Fases 3, 4, 5 y 6 están terminadas** la capa de datos de la Fase 7 está completa y el Resumen ya la consume.
+Actualizado: 27 de agosto de 2026, después de completar F7.2. **Las Fases 3, 4, 5 y 6 están terminadas** la capa de datos de la Fase 7 está completa y el Resumen ya la consume.
 
 ## Preferencias del usuario
 
@@ -57,8 +57,9 @@ Completado y versionado:
 | S7.3 | `8a61087` | Series diarias, rentabilidad por producto y categoría, y alertas operativas |
 | — | `94c11a9` | Prueba del selector reparada tras convertir Gastos en vista real |
 | F7.1 | `a0ab9ad` | Vista Resumen: KPIs, gráfica de 14 días, rentabilidad, últimas ventas y alertas |
+| F7.2 | `b168fb4` | Selector de periodo con segmentado, flechas y 18 meses navegables |
 
-La siguiente tarea pendiente del `PLAN.md` es **F7.2 · Selector de periodo**.
+La siguiente tarea pendiente del `PLAN.md` es **F7.3 · Vista Reportes**.
 
 ## Qué está construido y qué no
 
@@ -71,7 +72,7 @@ Vistas conectadas a datos reales:
 - `/gastos` — resumen mensual, distribución, filtros, alta, edición y borrado
 - `/compras` — sugerencia de reposición, órdenes pendientes/recibidas y recepción de mercancía
 - `/cotizaciones` — valor vigente, listado, conversión a contado/fiado y borrado
-- `/` (Resumen) — KPIs del periodo, gráfica de 14 días, rentabilidad por producto, últimas ventas y alertas navegables
+- `/` (Resumen) — selector de periodo, KPIs, gráfica de 14 días, rentabilidad por producto, últimas ventas y alertas navegables
 - `/ajustes` — negocio, logo, cuenta y contraseña
 
 Todavía es `PagePlaceholder`, sin datos:
@@ -303,23 +304,27 @@ npm run db:types
 - `metrics_alerts` apunta a `/inventario?filter=low` y `/inventario?filter=thin`. `/inventario` todavía no lee esos parámetros de consulta; conectarlos es parte de F7.1.
 - Cada RPC tiene su variante `private.*_at` con reloj explícito para pruebas deterministas, sin permisos para `authenticated`. Solo las cuatro funciones `public` se exponen al cliente.
 - `/` consume `metrics_summary`, `metrics_daily(14)`, `metrics_products` y `metrics_alerts`, más las últimas seis ventas de `v_sale_detail`. Cada panel carga y falla por separado: un error de alertas no vacía los KPI.
-- El periodo vive en la página como `period` (`today` por defecto, igual que el prototipo) y `monthOffset`. F7.2 solo tiene que mover ese estado; los paneles ya lo reciben.
+- El periodo vive en la página como `period` (`today` por defecto, igual que el prototipo) y `monthOffset`, y `DashboardPeriodSelector` los mueve con `v-model`.
+- Cambiar de periodo recarga **solo** el resumen y la rentabilidad. La gráfica son siempre los últimos 14 días, y las alertas, la cartera y las últimas ventas son una foto de hoy.
+- Las flechas y el selector de mes solo existen en el periodo `mes`; moverlos cambia el periodo a `mes`. La flecha adelante se desactiva en el mes actual y la de atrás en el mes 17, que es el más antiguo de los 18 que ofrece el selector.
+- `monthOffsetOptions` construye las etiquetas desde el mes en curso **del negocio**, no del navegador, y repite el arreglo de meses de `private.period_label` para que el selector y `metrics_summary` escriban el mismo mes igual. Si se toca uno hay que tocar el otro.
+- `month_offset` se ignora en `today` y `7d`, así que cambiar de periodo no necesita reiniciarlo: el mes elegido sigue ahí al volver a `mes`.
 - La gráfica son barras CSS, sin librería: es lo que hace el prototipo. Las dos barras de cada día se escalan contra la venta más alta de la serie, nunca cada una contra su propio máximo, para que una ganancia alta no parezca mayor que la venta.
 - `app/app/utils/metrics.ts` valida una sola vez la forma de los cuatro `jsonb` y expone tipos; ninguna cifra se recalcula en el cliente. También fija los cuatro números de la vista: 14 días, 6 productos, 6 ventas recientes.
 - El KPI **Por cobrar** navega a `/fiados` y es la única cifra que no depende del periodo: es una foto de hoy, y así lo dice su subtítulo.
 - Cada alerta lleva a su sección. `/inventario` lee `?filter=low` y `?filter=thin` desde la URL y deja el filtro aplicado al llegar.
 - Las últimas ventas muestran código, artículos y cliente porque `v_sale_detail` no expone el nombre del primer producto. Al tocar una venta se avisa que el visor llega en F8.1, igual que en Cotizaciones.
-- `app/tests/dashboard-flow.mjs` crea una venta de hoy con `create_sale`, comprueba KPIs, margen, las 14 barras con la de hoy etiquetada, el orden de la rentabilidad, la venta reciente y su aviso documental, los tres grupos de alertas con su orden operativo, la navegación a Inventario con cada filtro y la versión móvil sin desbordes ni controles bajo 44 px. Borra la venta y restaura el stock del seed.
+- `app/tests/dashboard-flow.mjs` crea una venta de hoy con `create_sale`, comprueba KPIs, margen, las 14 barras con la de hoy etiquetada, el orden de la rentabilidad, la venta reciente y su aviso documental, los tres grupos de alertas con su orden operativo, la navegación a Inventario con cada filtro, el selector de periodo completo (mes actual, mes anterior, los 18 meses, flechas y vuelta a Hoy) y la versión móvil con segmentado de ancho completo, etiquetas cortas, sin desbordes ni controles bajo 44 px. Las etiquetas de mes se calculan en la prueba para no depender de la fecha real; los importes se leen de `metrics_summary`. Borra la venta y restaura el stock del seed.
 - `supabase/tests/metrics_detail.test.sql` aporta 73 casos sobre reparto del descuento, serie continua con días en cero, productos y categorías reconciliados contra `metrics_summary`, producto borrado, márgenes indefinidos, los cuatro grupos de alertas con sus bordes (vence hoy no está vencido, orden recibida excluida, producto inactivo excluido), límites de entrada, permisos y aislamiento.
 
 ## Última validación
 
-Validaciones vigentes al completar F7.1:
+Validaciones vigentes al completar F7.2:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
-- `npm run app:test:dashboard`: KPIs de la venta del día, margen del 40 %, gráfica de 14 días, rentabilidad ordenada, última venta con su aviso documental, tres alertas en orden y navegación filtrada a Inventario; en móvil, dos columnas de KPI, sin desbordes y sin controles bajo 44 px.
+- `npm run app:test:dashboard`: KPIs de la venta del día, margen del 40 %, gráfica de 14 días, rentabilidad ordenada, última venta con su aviso documental, tres alertas en orden, navegación filtrada a Inventario y el selector de periodo con sus 18 meses; en móvil, dos columnas de KPI, segmentado de ancho completo, sin desbordes y sin controles bajo 44 px.
 - `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. En móvil comprueba que la barra de cobro queda anclada abajo, que el botón de escritorio no está visible y que ningún control baja de 44 px. Borra las ventas y restaura el stock del seed.
 - `npm run app:test:credits`: resumen de $790.000, tres deudores, un vencido, abono completo de $280.000, desaparición del cliente, cartera final de $510.000, actualización del total mensual y versión móvil sin controles menores de 44 px. No deja fixtures.
 - `npm run app:test:expenses`: total mensual y distribución por categoría, filtro de categoría, rango de un solo día, alta y edición real con Otro y recurrente, borrado confirmado, persistencia en PostgreSQL, actualización inmediata del resumen y tarjetas móviles. No deja fixtures.
@@ -338,23 +343,24 @@ Validaciones vigentes al completar F7.1:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F7.2
+## Próximo trabajo: F7.3
 
-Añadir el selector de periodo del Resumen: segmentado Hoy / 7 d / Mes, flechas
-‹ › y selector de los últimos 18 meses. No hace falta SQL: `period` y
-`monthOffset` ya son estado de `pages/index.vue` y los tres RPC del periodo los
-reciben; basta con exponerlos y recargar.
+Construir `/reportes`, la última vista que sigue siendo `PagePlaceholder`.
+Tampoco hace falta SQL nuevo: `metrics_summary` da las cuatro cifras con su
+porcentaje sobre ingresos, `metrics_categories` la ganancia por categoría —hoy
+sin ningún consumidor— y `metrics_products` el mejor y el peor producto.
 
-Lo que el prototipo fija y conviene respetar:
+Puntos a resolver:
 
-- Las flechas y el selector de mes solo se muestran con el periodo `mes`, y la
-  flecha hacia adelante se desactiva en el mes actual (`monthOffset` nunca baja
-  de cero).
-- Mover el mes con las flechas o con el selector cambia el periodo a `mes`.
-- En móvil el segmentado ocupa el ancho completo con etiquetas cortas
-  (Hoy / 7 d / Mes) y la nota «Comparado con …» se oculta.
-
-`metrics_categories` sigue sin consumidor: es para F7.3 (Reportes).
+- El historial de ventas sale de `v_sale_detail`, que ya expone código,
+  cliente, método, total y ganancia. Es la misma vista que usa el Resumen, pero
+  aquí va completa y acotada al periodo.
+- El selector de periodo es el mismo componente `DashboardPeriodSelector`; si se
+  reutiliza tal cual conviene moverlo fuera de `components/dashboard/`.
+- La exportación CSV es la única pieza sin precedente en el proyecto: hay que
+  decidir con el usuario si se genera en el cliente o si merece una función.
+- El peor producto necesita criterio de negocio: si es el de menor margen, el de
+  menor ganancia o el de mayor pérdida. Preguntarlo antes de implementarlo.
 
 ## Fuentes de diseño disponibles
 
