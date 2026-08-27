@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F4.2. **Las Fases 3 y 4 están terminadas**; Gastos y Fiados ya tienen backend e interfaz funcional.
+Actualizado: 26 de agosto de 2026, después de completar S5.1. **Las Fases 3 y 4 están terminadas** y la Fase 5 ya tiene el backend seguro de órdenes de compra.
 
 ## Preferencias del usuario
 
@@ -47,8 +47,9 @@ Completado y versionado:
 | F4.1 | `8907ccc` | Vista Gastos con resumen, filtros, alta y versión móvil |
 | Mejora F4.1/F2.1 | `98e68bd` | Edición/borrado de gastos y valoración total del inventario |
 | F4.2 | `c73d172` | Vista Fiados con resumen, vencidos, lista adaptable y abonos |
+| S5.1 | `8c266ef` | CRUD protegido y recepción idempotente de órdenes de compra |
 
-La siguiente tarea del `PLAN.md` es **S5.1 · Órdenes de compra**.
+La siguiente tarea del `PLAN.md` es **S5.2 · `suggest_purchase`**.
 
 ## Qué está construido y qué no
 
@@ -66,9 +67,10 @@ Todavía son `PagePlaceholder`, sin datos:
 - `/` (Resumen), `/cotizaciones`, `/compras`, `/reportes`
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
-(S3.2) y `period_range` (S7.1). La Caja registra ventas pero no hay pantalla para
+(S3.2), `period_range` (S7.1), el CRUD de `purchase_order`/`purchase_line` y
+`receive_purchase_order` (S5.1). La Caja registra ventas pero no hay pantalla para
 verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
-la Fase 8.
+la Fase 8. Compras se conectará en F5.1 cuando también exista `suggest_purchase`.
 
 ## Convenciones de trabajo
 
@@ -119,6 +121,7 @@ npm run app:test:settings
 npm run app:test:session-business
 npm run db:test
 npm run db:test:sales
+npm run db:test:purchases
 npm run db:test:functions
 npm run db:types
 ```
@@ -235,10 +238,15 @@ npm run db:types
 - Tras un abono se recargan lista y resumen en paralelo. Si el saldo llega a cero, el cliente desaparece porque `v_credits` solo devuelve deuda positiva.
 - El seed incluye tres fiados demo: $790.000 por cobrar, un cliente vencido con $350.000 y un abono de $100.000 en el mes local. Sus códigos `DEMO-CRED-*` permiten que las pruebas de Caja sigan aislando sus ventas `FAC-*`.
 - `app/tests/credits-flow.mjs` comprueba los totales iniciales, el estado vencido, la precarga exacta de $280.000, persistencia del abono con tarjeta, salida del cliente, reducción exacta a $510.000 y actualización del abono mensual a $380.000. También valida tarjetas móviles y limpia su pago al terminar.
+- Los miembros pueden crear, editar y eliminar órdenes `PENDING`; también pueden cancelarlas. Una orden `RECEIVED` queda inmutable, y una `CANCELLED` no puede reabrirse ni recibirse.
+- Las políticas de `purchase_line` exigen que la orden siga pendiente y que el producto pertenezca al mismo negocio. Las órdenes tampoco aceptan proveedores de otro tenant. `authenticated` no puede escribir `received_at`, cambiar el código/negocio ni marcar `RECEIVED` directamente.
+- `receive_purchase_order(p_order)` bloquea primero la orden. Si ya está recibida retorna sin efectos; si está cancelada o vacía falla. Recorre productos por UUID para evitar deadlocks, suma `qty` al stock, reemplaza el costo actual con `unit_cost`, escribe movimientos `PURCHASE` y finalmente guarda estado y fecha de recepción.
+- El costo actualizado solo afecta ventas futuras: las ventas históricas conservan el `unit_cost` congelado en `sale_line`, conforme a la regla central del plan.
+- `supabase/tests/receive-purchase-order.concurrent.cjs` lanza diez recepciones simultáneas de la misma orden y exige exactamente dos movimientos, 12 unidades y un único cambio de costo/stock.
 
 ## Última validación
 
-Validaciones vigentes al completar F4.2:
+Validaciones vigentes al completar S5.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -253,20 +261,20 @@ Validaciones vigentes al completar F4.2:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 327 pruebas SQL, incluidas 11 del resumen de Fiados; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos sobre el mismo cliente y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 362 pruebas SQL, incluidas 35 de órdenes de compra; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S5.1
+## Próximo trabajo: S5.2
 
-Órdenes de compra:
+Sugerencia de compra:
 
-1. Implementar el CRUD de órdenes y sus líneas sobre el esquema existente.
-2. Crear `receive_purchase_order` usando `adjust_stock` como antecedente de las reglas de movimiento.
-3. Hacer la recepción idempotente: recibir dos veces la misma orden no puede duplicar existencias ni movimientos.
-4. Mantener RLS, aislamiento entre negocios y pruebas de concurrencia/segunda recepción antes de conectar la vista F5.1.
+1. Implementar `suggest_purchase(p_business)` sobre productos activos con `stock < min_stock`.
+2. Sugerir `max(min_stock × 2 − stock, 1)` unidades por producto, exactamente como define la regla 2.8 del plan.
+3. Incluir el costo actual como estimado y devolver un total calculado en PostgreSQL.
+4. Cubrir productos en el límite, stock negativo, costo cero, aislamiento y sumas enteras antes de construir F5.1.
 
 ## Fuentes de diseño disponibles
 
