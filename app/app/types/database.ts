@@ -1250,6 +1250,24 @@ export type Database = {
       }
       is_member: { Args: { p_business: string }; Returns: boolean }
       logo_business_id: { Args: { p_object_name: string }; Returns: string }
+      metrics_alerts: { Args: { p_business: string }; Returns: Json }
+      metrics_categories: {
+        Args: { p_business: string; p_month_offset: number; p_period: string }
+        Returns: Json
+      }
+      metrics_daily: {
+        Args: { p_business: string; p_days: number }
+        Returns: Json
+      }
+      metrics_products: {
+        Args: {
+          p_business: string
+          p_limit?: number
+          p_month_offset: number
+          p_period: string
+        }
+        Returns: Json
+      }
       metrics_summary: {
         Args: { p_business: string; p_month_offset?: number; p_period: string }
         Returns: Json
