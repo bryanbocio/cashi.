@@ -2,7 +2,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 
-const port = 3000
+const port = 3520
 const baseUrl = `http://localhost:${port}`
 const mailpitUrl = 'http://127.0.0.1:54324'
 const browserCandidates = [
@@ -96,13 +96,14 @@ const email = `f1.3-${timestamp}@cashi.local`
 const password = `Cashi-${timestamp}!`
 const businessName = `Perfumería F1.3 ${timestamp}`
 let browser
+let page
+const browserErrors = []
 
 try {
   await waitForServer()
   browser = await chromium.launch({ executablePath, headless: true })
-  const browserErrors = []
   const context = await browser.newContext()
-  const page = await context.newPage()
+  page = await context.newPage()
   watchBrowserErrors(page, browserErrors)
   const existingIds = new Set((await listMessages()).map(message => message.ID))
 
@@ -141,6 +142,10 @@ try {
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
 
   console.log(`PASS: onboarding creó y activó ${businessName} con OWNER, categorías y secuencias iniciales.`)
+} catch (error) {
+  const pageText = await page?.locator('body').innerText().catch(() => '')
+  console.error(`URL final: ${page?.url() ?? 'sin página'}\nErrores del navegador: ${browserErrors.join(' | ') || 'ninguno'}\nContenido: ${pageText?.slice(0, 3000)}`)
+  throw error
 } finally {
   await browser?.close()
   server.kill()

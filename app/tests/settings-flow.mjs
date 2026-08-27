@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
 
-const port = 3000
+const port = 3530
 const baseUrl = `http://localhost:${port}`
 const mailpitUrl = 'http://127.0.0.1:54324'
 const browserCandidates = [
