@@ -23,8 +23,14 @@ const stockFilters = [
   { label: 'Margen bajo', value: 'thin' },
 ]
 
+// Las alertas del Resumen enlazan a /inventario?filter=low y ?filter=thin.
+const route = useRoute()
+function filterFromQuery(value: unknown) {
+  return value === 'low' || value === 'thin' ? value : 'all'
+}
+
 const search = ref('')
-const stockFilter = ref('all')
+const stockFilter = ref(filterFromQuery(route.query.filter))
 const categoryId = ref<string | null>(null)
 const supplierId = ref<string | null>(null)
 
@@ -128,6 +134,8 @@ watch(search, () => {
 onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 
 watch([stockFilter, categoryId, supplierId], loadProducts)
+
+watch(() => route.query.filter, value => { stockFilter.value = filterFromQuery(value) })
 
 watch(() => businessStore.activeBusinessId, async businessId => {
   selectedId.value = null
