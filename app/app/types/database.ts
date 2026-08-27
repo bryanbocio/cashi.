@@ -1083,6 +1083,7 @@ export type Database = {
           to: string
         }[]
       }
+      receive_purchase_order: { Args: { p_order: string }; Returns: undefined }
       register_payment: {
         Args: {
           p_amount: number
