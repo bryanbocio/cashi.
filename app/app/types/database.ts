@@ -1250,6 +1250,10 @@ export type Database = {
       }
       is_member: { Args: { p_business: string }; Returns: boolean }
       logo_business_id: { Args: { p_object_name: string }; Returns: string }
+      metrics_summary: {
+        Args: { p_business: string; p_month_offset?: number; p_period: string }
+        Returns: Json
+      }
       next_doc_code: {
         Args: { p_business: string; p_type: string }
         Returns: string
