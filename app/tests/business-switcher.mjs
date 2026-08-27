@@ -110,8 +110,10 @@ try {
     throw new Error('El segundo negocio no quedó activo después del onboarding.')
   }
 
+  // Recarga completa en otra ruta: el contexto activo debe sobrevivir. Gastos
+  // ya no es un placeholder, así que quien lo muestra es el propio selector.
   await page.goto(`${baseUrl}/gastos`, { waitUntil: 'networkidle' })
-  await page.getByTestId('active-business-name').getByText(secondBusinessName, { exact: true }).waitFor()
+  await page.getByRole('button', { name: `Cambiar negocio. Activo: ${secondBusinessName}` }).waitFor()
   await openSwitcher(page)
 
   const activeSecondOption = page.getByRole('button', { name: `Cambiar a ${secondBusinessName}` })
