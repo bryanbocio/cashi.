@@ -23,8 +23,7 @@ const businessStore = useBusinessStore()
 const toast = useToast()
 const { execute } = useSupabaseRequest()
 
-// El selector de periodo llega en F7.2; la vista ya trabaja con el estado que
-// va a mover para no tener que rehacerla después.
+// `UiPeriodSelector` mueve estos dos valores; el resto de la vista solo los lee.
 const period = ref<MetricsPeriod>('today')
 const monthOffset = ref(0)
 
@@ -166,7 +165,7 @@ function openSale(sale: RecentSale) {
       </p>
     </header>
 
-    <DashboardPeriodSelector
+    <UiPeriodSelector
       v-model:period="period"
       v-model:month-offset="monthOffset"
       class="mb-3.5"

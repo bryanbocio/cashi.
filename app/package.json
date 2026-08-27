@@ -21,6 +21,7 @@
     "test:onboarding": "node tests/onboarding-flow.mjs",
     "test:purchases": "node tests/purchases-flow.mjs",
     "test:quotes": "node tests/quotes-flow.mjs",
+    "test:reports": "node tests/reports-flow.mjs",
     "test:settings": "node tests/settings-flow.mjs",
     "test:session-business": "node tests/session-business.mjs"
   },

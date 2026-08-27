@@ -32,6 +32,7 @@
     "app:test:onboarding": "npm --prefix app run test:onboarding",
     "app:test:purchases": "npm --prefix app run test:purchases",
     "app:test:quotes": "npm --prefix app run test:quotes",
+    "app:test:reports": "npm --prefix app run test:reports",
     "app:test:settings": "npm --prefix app run test:settings",
     "app:test:session-business": "npm --prefix app run test:session-business"
   },
