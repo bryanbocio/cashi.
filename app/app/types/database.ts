@@ -1107,6 +1107,7 @@ export type Database = {
           stock: number
         }[]
       }
+      suggest_purchase: { Args: { p_business: string }; Returns: Json }
       void_sale: { Args: { p_sale: string }; Returns: undefined }
     }
     Enums: {
