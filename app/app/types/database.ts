@@ -1166,6 +1166,10 @@ export type Database = {
         Args: { p_delta: number; p_product: string; p_reason: string }
         Returns: Json
       }
+      convert_quote: {
+        Args: { p_due: string; p_method: string; p_quote: string }
+        Returns: Json
+      }
       create_business: {
         Args: { p_currency: string; p_name: string; p_timezone: string }
         Returns: string
