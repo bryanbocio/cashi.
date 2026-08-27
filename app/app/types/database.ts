@@ -619,6 +619,20 @@ export type Database = {
             referencedRelation: "quote"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "quote_line_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "v_quote_detail"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_line_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "v_quote_line_detail"
+            referencedColumns: ["quote_id"]
+          },
         ]
       }
       sale: {
@@ -698,6 +712,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "quote"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "v_quote_detail"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "v_quote_line_detail"
+            referencedColumns: ["quote_id"]
           },
         ]
       }
@@ -991,6 +1019,104 @@ export type Database = {
           },
         ]
       }
+      v_quote_detail: {
+        Row: {
+          business_id: string | null
+          code: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          detail: string | null
+          gross_profit: number | null
+          id: string | null
+          line_count: number | null
+          status: Database["public"]["Enums"]["quote_status"] | null
+          total: number | null
+          total_units: number | null
+          updated_at: string | null
+          valid_until: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_credits"
+            referencedColumns: ["customer_id"]
+          },
+        ]
+      }
+      v_quote_line_detail: {
+        Row: {
+          business_id: string | null
+          code: string | null
+          created_at: string | null
+          customer_id: string | null
+          line_id: string | null
+          line_profit: number | null
+          line_total: number | null
+          name_snapshot: string | null
+          product_id: string | null
+          qty: number | null
+          quote_id: string | null
+          status: Database["public"]["Enums"]["quote_status"] | null
+          unit_cost: number | null
+          unit_price: number | null
+          valid_until: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "v_credits"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "quote_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_line_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_sale_detail: {
         Row: {
           business_id: string | null
@@ -1043,6 +1169,15 @@ export type Database = {
       create_business: {
         Args: { p_currency: string; p_name: string; p_timezone: string }
         Returns: string
+      }
+      create_quote: {
+        Args: {
+          p_business: string
+          p_customer: string
+          p_lines: Json
+          p_valid_until: string
+        }
+        Returns: Json
       }
       create_sale: {
         Args: {
