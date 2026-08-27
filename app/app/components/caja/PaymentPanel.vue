@@ -3,8 +3,8 @@ import type { PaymentMethod } from '~/stores/cart'
 
 type Option = { label: string; value: string }
 
-defineProps<{ customers: Option[]; charging: boolean }>()
-const emit = defineEmits<{ charge: [] }>()
+defineProps<{ customers: Option[]; charging: boolean; quoting: boolean }>()
+const emit = defineEmits<{ charge: []; quote: [] }>()
 
 const cart = useCartStore()
 const { formatMoney } = useMoney()
@@ -35,7 +35,7 @@ const isCredit = computed(() => cart.paymentMethod === 'CREDIT')
         show-clear
         filter
         filter-placeholder="Busca un cliente"
-        :disabled="charging"
+        :disabled="charging || quoting"
         fluid
       />
       <p v-if="!customers.length" class="mt-1.5 mb-0 text-[11px] text-muted">
@@ -55,7 +55,7 @@ const isCredit = computed(() => cart.paymentMethod === 'CREDIT')
             ? 'border-ink bg-ink text-white'
             : 'border-black/15 bg-panel hover:bg-surface'"
           :aria-pressed="cart.paymentMethod === method.value"
-          :disabled="charging"
+          :disabled="charging || quoting"
           :data-testid="`method-${method.value}`"
           @click="cart.paymentMethod = method.value"
         >
@@ -66,12 +66,12 @@ const isCredit = computed(() => cart.paymentMethod === 'CREDIT')
 
     <div v-if="isCredit">
       <label for="caja-due" class="mb-1.5 block text-[11px] font-semibold text-ink">Fecha de pago</label>
-      <PrimeDatePicker id="caja-due" v-model="cart.dueDate" date-format="dd/mm/yy" show-icon :disabled="charging" fluid />
+      <PrimeDatePicker id="caja-due" v-model="cart.dueDate" date-format="dd/mm/yy" show-icon :disabled="charging || quoting" fluid />
     </div>
 
     <div>
       <label for="caja-discount" class="mb-1.5 block text-[11px] font-semibold text-ink">Descuento</label>
-      <PrimeInputNumber v-model="cart.discount" input-id="caja-discount" :min="0" :max-fraction-digits="0" :disabled="charging" fluid />
+      <PrimeInputNumber v-model="cart.discount" input-id="caja-discount" :min="0" :max-fraction-digits="0" :disabled="charging || quoting" fluid />
     </div>
 
     <dl class="m-0 grid gap-1.5 border-t border-black/10 pt-4 text-[12px]">
@@ -97,10 +97,13 @@ const isCredit = computed(() => cart.paymentMethod === 'CREDIT')
     </div>
 
     <div class="grid gap-2">
-      <UiButton class="w-full max-[760px]:hidden" :disabled="cart.isEmpty" :loading="charging" data-testid="caja-charge" @click="emit('charge')">
+      <UiButton class="w-full max-[760px]:hidden" :disabled="cart.isEmpty || quoting" :loading="charging" data-testid="caja-charge" @click="emit('charge')">
         Cobrar {{ formatMoney(cart.total) }}
       </UiButton>
-      <UiButton class="w-full" variant="ghost" :disabled="cart.isEmpty || charging" data-testid="caja-clear" @click="cart.clear()">
+      <UiButton class="w-full" variant="secondary" :disabled="cart.isEmpty || charging" :loading="quoting" data-testid="caja-save-quote" @click="emit('quote')">
+        Guardar cotización
+      </UiButton>
+      <UiButton class="w-full" variant="ghost" :disabled="cart.isEmpty || charging || quoting" data-testid="caja-clear" @click="cart.clear()">
         Vaciar carrito
       </UiButton>
     </div>

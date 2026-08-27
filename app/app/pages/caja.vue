@@ -8,6 +8,7 @@ useHead({ title: 'Caja · Cashi' })
 
 type Option = { label: string; value: string }
 type SaleResult = { code?: string; total?: number }
+type QuoteResult = { code?: string; total?: number }
 
 const client = useSupabaseClient<Database>()
 const businessStore = useBusinessStore()
@@ -18,7 +19,10 @@ const { formatMoney } = useMoney()
 
 const customers = ref<Option[]>([])
 const charging = ref(false)
+const quoting = ref(false)
+const quoteOpen = ref(false)
 const search = ref<{ loadFrequent: () => Promise<void> } | null>(null)
+const customerName = computed(() => customers.value.find(item => item.value === cart.customerId)?.label ?? 'Sin cliente')
 
 async function loadCustomers(businessId: string) {
   const data = await execute(client.from('customer').select('id, name').eq('business_id', businessId).order('name'))
@@ -78,6 +82,49 @@ async function charge() {
     charging.value = false
   }
 }
+
+function openQuote() {
+  if (cart.isEmpty || charging.value || quoting.value) return
+  if (cart.discount > 0) {
+    toast.add({
+      severity: 'warn',
+      summary: 'No se puede cotizar con descuento',
+      detail: 'Retira el descuento del carrito para guardar la cotización.',
+      life: 5000,
+    })
+    return
+  }
+  quoteOpen.value = true
+}
+
+async function saveQuote(validUntil: string) {
+  const businessId = businessStore.activeBusinessId
+  if (!businessId || cart.isEmpty || quoting.value || cart.discount > 0) return
+
+  quoting.value = true
+  try {
+    const args = {
+      p_business: businessId,
+      p_customer: cart.customerId,
+      p_lines: cart.saleLines,
+      p_valid_until: validUntil,
+    } as Database['public']['Functions']['create_quote']['Args']
+    const quote = await execute(client.rpc('create_quote', args)) as QuoteResult | null
+    toast.add({
+      severity: 'success',
+      summary: `Cotización ${quote?.code ?? ''} guardada`.trim(),
+      detail: `${formatMoney(quote?.total ?? cart.subtotal)} sin afectar el inventario.`,
+      life: 5000,
+    })
+    quoteOpen.value = false
+    cart.clear()
+    await navigateTo('/cotizaciones')
+  } catch {
+    // useSupabaseRequest ya mostró el error seguro.
+  } finally {
+    quoting.value = false
+  }
+}
 </script>
 
 <template>
@@ -103,7 +150,9 @@ async function charge() {
         class="min-[1120px]:sticky min-[1120px]:top-6"
         :customers="customers"
         :charging="charging"
+        :quoting="quoting"
         @charge="charge"
+        @quote="openQuote"
       />
     </div>
 
@@ -119,9 +168,17 @@ async function charge() {
           {{ formatMoney(cart.total) }}
         </strong>
       </div>
-      <UiButton :disabled="cart.isEmpty" :loading="charging" data-testid="caja-charge-mobile" @click="charge">
+      <UiButton :disabled="cart.isEmpty || quoting" :loading="charging" data-testid="caja-charge-mobile" @click="charge">
         Cobrar
       </UiButton>
     </div>
+
+    <QuotesSaveQuoteModal
+      v-model:open="quoteOpen"
+      :saving="quoting"
+      :subtotal="cart.subtotal"
+      :customer-name="customerName"
+      @save="saveQuote"
+    />
   </section>
 </template>
