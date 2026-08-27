@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar S5.2. **Las Fases 3 y 4 están terminadas** y el backend de Compras de la Fase 5 está completo.
+Actualizado: 26 de agosto de 2026, después de completar F5.1. **Las Fases 3, 4 y 5 están terminadas**.
 
 ## Preferencias del usuario
 
@@ -49,8 +49,9 @@ Completado y versionado:
 | F4.2 | `c73d172` | Vista Fiados con resumen, vencidos, lista adaptable y abonos |
 | S5.1 | `8c266ef` | CRUD protegido y recepción idempotente de órdenes de compra |
 | S5.2 | `cf74bdf` | Sugerencias de reposición con cantidades y costos estimados |
+| F5.1 | `524a820` | Vista Compras, creación atómica de sugerencias y recepción desde la interfaz |
 
-La siguiente tarea del `PLAN.md` es **F5.1 · Vista Compras**.
+La siguiente tarea del `PLAN.md` es **S6.1 · `create_quote` y listados**.
 
 ## Qué está construido y qué no
 
@@ -61,17 +62,17 @@ Vistas conectadas a datos reales:
 - `/caja` — buscador, frecuentes, carrito y cobro
 - `/fiados` — cartera total, vencidos, deudores y registro de abonos
 - `/gastos` — resumen mensual, distribución, filtros, alta, edición y borrado
+- `/compras` — sugerencia de reposición, órdenes pendientes/recibidas y recepción de mercancía
 - `/ajustes` — negocio, logo, cuenta y contraseña
 
 Todavía son `PagePlaceholder`, sin datos:
 
-- `/` (Resumen), `/cotizaciones`, `/compras`, `/reportes`
+- `/` (Resumen), `/cotizaciones`, `/reportes`
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
-(S3.2), `period_range` (S7.1), el CRUD de `purchase_order`/`purchase_line` y
-`receive_purchase_order` (S5.1), y `suggest_purchase` (S5.2). La Caja registra ventas pero no hay pantalla para
+(S3.2) y `period_range` (S7.1). La Caja registra ventas pero no hay pantalla para
 verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
-la Fase 8. Compras ya puede conectarse en F5.1.
+la Fase 8.
 
 ## Convenciones de trabajo
 
@@ -117,6 +118,7 @@ npm run app:test:credits
 npm run app:test:expenses
 npm run app:test:inventory
 npm run app:test:inventory-import
+npm run app:test:purchases
 npm run app:test:onboarding
 npm run app:test:settings
 npm run app:test:session-business
@@ -248,10 +250,15 @@ npm run db:types
 - Solo sugiere productos activos con `stock < min_stock`; estar exactamente en el mínimo no cuenta. La cantidad se calcula en PostgreSQL como `max(min_stock × 2 − stock, 1)`, incluso con stock negativo, y un costo actual de cero mantiene la línea con estimado cero.
 - En el seed demo la sugerencia es CUI-002 × 7 y ACC-003 × 6: 13 unidades por $108.500. Las 24 pruebas de S5.2 cubren fórmula, agregados, proveedor por línea, límite estricto, stock negativo, costo cero, inactivos, sesión e aislamiento.
 - El prototipo interactivo define que **Crear orden sugerida** crea una sola orden con la etiqueta “Varios proveedores”. En F5.1 la orden mixta puede usar `supplier_id = null`; la interfaz debe derivar esa etiqueta de las líneas, sin borrar la información de proveedor que entrega `suggest_purchase`.
+- `create_suggested_purchase_order(p_business)` bloquea los productos con stock bajo en orden UUID y crea atómicamente una sola orden `PENDING` con todas sus líneas. Obtiene el código `OC-` mediante `next_doc_code`, no modifica existencias ni costos al crear y rechaza negocios sin sugerencias.
+- `v_purchase_orders` concentra los totales exactos de cada orden (`line_count`, `total_units`, `total_cost`) y muestra “Varios proveedores” cuando una orden con líneas no tiene `supplier_id`. La vista usa `security_invoker` y conserva el aislamiento RLS.
+- `/compras` sigue el prototipo: banner de reposición, creación de la orden sugerida, tabla de escritorio, tarjetas móviles y acción **Recibir** para órdenes pendientes. Al recibir, recarga simultáneamente órdenes y sugerencia.
+- La recepción continúa siendo el único punto que cambia stock y costo actual. La pantalla recuerda que las ventas históricas conservan el costo congelado de su `sale_line`.
+- `app/tests/purchases-flow.mjs` comprueba la sugerencia demo (2 productos, 13 unidades, $108.500), creación de `OC-0001` sin alterar inventario, recepción única, movimientos y costos exactos, desaparición de la sugerencia y controles móviles de al menos 44 px. Limpia el fixture al terminar.
 
 ## Última validación
 
-Validaciones vigentes al completar S5.2:
+Validaciones vigentes al completar F5.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -261,25 +268,26 @@ Validaciones vigentes al completar S5.2:
 - `npm run app:test:expenses`: total mensual y distribución por categoría, filtro de categoría, rango de un solo día, alta y edición real con Otro y recurrente, borrado confirmado, persistencia en PostgreSQL, actualización inmediata del resumen y tarjetas móviles. No deja fixtures.
 - `npm run app:test:inventory-import`: alta manual con categoría y proveedor nuevos, aviso de SKU repetido, importación con una fila válida y una con decimales, y comprobación en PostgreSQL de lo guardado. Limpia sus fixtures al terminar.
 - `npm run app:test:inventory`: valoración completa al costo independiente de los filtros, listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, actualización del total al ajustar existencias, movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
+- `npm run app:test:purchases`: crea la orden sugerida mixta, comprueba que no cambie stock al crear, la recibe desde la interfaz, valida stock/costos/movimientos en PostgreSQL y la tarjeta móvil accesible. No deja fixtures.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
 - `npm run app:test:business-switcher`: dos negocios, contexto visible actualizado y, ya sobre el Inventario real, el negocio nuevo sin productos frente a los 9 del demo; versión móvil y cierre de sesión.
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 386 pruebas SQL, incluidas 35 de órdenes de compra y 24 de sugerencias; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 407 pruebas SQL, incluidas 35 de órdenes de compra, 24 de sugerencias y 21 del soporte de interfaz de Compras; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F5.1
+## Próximo trabajo: S6.1
 
-Vista Compras:
+Cotizaciones — `create_quote` y listados:
 
-1. Reemplazar `/compras` por el banner de sugerencia y la lista real de órdenes en tabla/tarjetas.
-2. Conectar **Crear orden sugerida** a `next_doc_code`, `purchase_order` y `purchase_line` usando una sola orden mixta con `supplier_id = null`, como indica el prototipo.
-3. Mostrar código, proveedor/“Varios proveedores”, unidades, costo y estado; las pendientes llevan acción **Recibir** conectada a `receive_purchase_order`.
-4. Tras recibir, actualizar inmediatamente la orden y los valores del inventario; validar escritorio, móvil y objetivos táctiles de 44 px.
+1. Implementar `create_quote(p_business, p_customer, p_lines, p_valid_until) -> jsonb` con código correlativo `COT-`.
+2. Validar pertenencia de cliente y productos al negocio, líneas y fecha de vigencia según las reglas del `PLAN.md`.
+3. Añadir los listados necesarios para consumir cotizaciones desde la interfaz posterior.
+4. Cubrir permisos, aislamiento, importes y concurrencia de códigos antes de avanzar a F6.1.
 
 ## Fuentes de diseño disponibles
 
