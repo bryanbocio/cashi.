@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar F5.1. **Las Fases 3, 4 y 5 están terminadas**.
+Actualizado: 27 de agosto de 2026, después de completar S6.1. **Las Fases 3, 4 y 5 están terminadas** y la Fase 6 está en curso.
 
 ## Preferencias del usuario
 
@@ -50,8 +50,9 @@ Completado y versionado:
 | S5.1 | `8c266ef` | CRUD protegido y recepción idempotente de órdenes de compra |
 | S5.2 | `cf74bdf` | Sugerencias de reposición con cantidades y costos estimados |
 | F5.1 | `524a820` | Vista Compras, creación atómica de sugerencias y recepción desde la interfaz |
+| S6.1 | `2df48e1` | Creación de cotizaciones y listados protegidos de resumen/líneas |
 
-La siguiente tarea del `PLAN.md` es **S6.1 · `create_quote` y listados**.
+La siguiente tarea del `PLAN.md` es **S6.2 · `convert_quote`**.
 
 ## Qué está construido y qué no
 
@@ -70,9 +71,11 @@ Todavía son `PagePlaceholder`, sin datos:
 - `/` (Resumen), `/cotizaciones`, `/reportes`
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
-(S3.2) y `period_range` (S7.1). La Caja registra ventas pero no hay pantalla para
+(S3.2), `period_range` (S7.1), `create_quote`, `v_quote_detail` y
+`v_quote_line_detail` (S6.1). La Caja registra ventas pero no hay pantalla para
 verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
-la Fase 8.
+la Fase 8. Cotizaciones todavía no se guardan desde Caja ni tienen pantalla real;
+eso llega en F6.1, después de implementar la conversión de S6.2.
 
 ## Convenciones de trabajo
 
@@ -123,6 +126,7 @@ npm run app:test:onboarding
 npm run app:test:settings
 npm run app:test:session-business
 npm run db:test
+npm run db:test:quotes
 npm run db:test:sales
 npm run db:test:purchases
 npm run db:test:functions
@@ -255,10 +259,16 @@ npm run db:types
 - `/compras` sigue el prototipo: banner de reposición, creación de la orden sugerida, tabla de escritorio, tarjetas móviles y acción **Recibir** para órdenes pendientes. Al recibir, recarga simultáneamente órdenes y sugerencia.
 - La recepción continúa siendo el único punto que cambia stock y costo actual. La pantalla recuerda que las ventas históricas conservan el costo congelado de su `sale_line`.
 - `app/tests/purchases-flow.mjs` comprueba la sugerencia demo (2 productos, 13 unidades, $108.500), creación de `OC-0001` sin alterar inventario, recepción única, movimientos y costos exactos, desaparición de la sugerencia y controles móviles de al menos 44 px. Limpia el fixture al terminar.
+- `create_quote(p_business, p_customer, p_lines, p_valid_until)` crea una cotización `OPEN` con código `COT-`, agrupa productos repetidos y congela nombre, precio y costo. El cliente es opcional y la fecha de vigencia es obligatoria.
+- Crear una cotización **no** cambia existencias, no escribe `stock_movement` y no crea una venta. Los productos se bloquean por UUID mientras se toma el snapshot para que precio, costo y total sean coherentes incluso ante ediciones simultáneas.
+- La RPC rechaza productos inactivos o ajenos, clientes de otro tenant, cantidades nulas, negativas, fraccionarias o fuera de `integer`, y montos que excedan `bigint`. Las validaciones ocurren antes de consumir el código correlativo.
+- `authenticated` ya no puede insertar o editar `quote` ni escribir `quote_line` directamente: toda creación pasa por la RPC para impedir que `total` y snapshots diverjan. El borrado directo sigue permitido solo para cotizaciones `OPEN`, como exige la acción Eliminar de F6.1.
+- `v_quote_detail` entrega cliente/“Sin cliente”, vigencia, estado, cantidad de líneas/unidades, total, ganancia congelada y detalle legible. `v_quote_line_detail` entrega cada línea con `line_total` y `line_profit`. Ambas vistas usan `security_invoker` y heredan RLS.
+- `supabase/tests/create-quote.concurrent.cjs` crea 40 cotizaciones simultáneas y exige 40 códigos únicos consecutivos sin cambios en stock, movimientos ni ventas; elimina sus documentos y restaura la secuencia al terminar.
 
 ## Última validación
 
-Validaciones vigentes al completar F5.1:
+Validaciones vigentes al completar S6.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -274,20 +284,20 @@ Validaciones vigentes al completar F5.1:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 407 pruebas SQL, incluidas 35 de órdenes de compra, 24 de sugerencias y 21 del soporte de interfaz de Compras; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 458 pruebas SQL, incluidas 51 de creación/listados de cotizaciones; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, 40 cotizaciones concurrentes sin efectos contables, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S6.1
+## Próximo trabajo: S6.2
 
-Cotizaciones — `create_quote` y listados:
+Conversión de cotizaciones — `convert_quote`:
 
-1. Implementar `create_quote(p_business, p_customer, p_lines, p_valid_until) -> jsonb` con código correlativo `COT-`.
-2. Validar pertenencia de cliente y productos al negocio, líneas y fecha de vigencia según las reglas del `PLAN.md`.
-3. Añadir los listados necesarios para consumir cotizaciones desde la interfaz posterior.
-4. Cubrir permisos, aislamiento, importes y concurrencia de códigos antes de avanzar a F6.1.
+1. Implementar `convert_quote(p_quote, p_method, p_due) -> jsonb` y serializar dos conversiones simultáneas de la misma cotización.
+2. Crear la venta mediante las reglas de `create_sale`, enlazarla con `sale.quote_id` y dejar la cotización `CONVERTED`.
+3. Rechazar cotizaciones cerradas y exigir cliente cuando `p_method = 'CREDIT'`; conservar `p_due` solo para fiado.
+4. Probar que convertir descuenta stock y escribe movimientos exactamente una vez antes de avanzar a F6.1.
 
 ## Fuentes de diseño disponibles
 
