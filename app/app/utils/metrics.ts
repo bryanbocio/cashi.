@@ -17,6 +17,9 @@ export const METRICS_PERIODS: Array<{ label: string; shortLabel: string; value: 
   { label: 'Mes', shortLabel: 'Mes', value: 'month' },
 ]
 
+/** Meses navegables del selector de periodo, fijados por el `PLAN.md`. */
+export const METRICS_MONTH_OPTIONS = 18
+
 /** Días de la gráfica del Resumen, fijados por el `PLAN.md`. */
 export const METRICS_CHART_DAYS = 14
 
@@ -289,6 +292,38 @@ export function marginTone(marginPct: number | null) {
   if (marginPct >= 35) return 'positive' as const
   if (marginPct >= 20) return 'neutral' as const
   return 'negative' as const
+}
+
+/**
+ * Nombres de mes en español, copiados de `private.period_label`: la etiqueta
+ * del selector tiene que coincidir letra por letra con la que devuelve
+ * `metrics_summary`, o el mismo mes aparecería escrito de dos formas.
+ */
+const MONTH_NAMES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+/**
+ * Los últimos meses contados desde el mes en curso **del negocio**: quien
+ * consulta desde otra zona horaria no debe ver un mes de más ni de menos.
+ * El valor es el `month_offset` que espera Postgres: 0 es el mes actual.
+ */
+export function monthOffsetOptions(timezone: string, count = METRICS_MONTH_OPTIONS) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: 'numeric' })
+    .formatToParts(new Date())
+  const current = Object.fromEntries(parts.map(part => [part.type, Number(part.value)]))
+  const year = current.year ?? new Date().getFullYear()
+  const month = current.month ?? new Date().getMonth() + 1
+
+  return Array.from({ length: count }, (_, offset) => {
+    // `month` es 1–12; el índice negativo se resuelve con Date en UTC.
+    const date = new Date(Date.UTC(year, month - 1 - offset, 1))
+    return {
+      value: offset,
+      label: `${MONTH_NAMES[date.getUTCMonth()]} ${date.getUTCFullYear()}`,
+    }
+  })
 }
 
 /** Etiqueta corta del eje de la gráfica: `27 ago`. */

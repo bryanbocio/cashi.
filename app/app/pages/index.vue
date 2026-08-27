@@ -136,6 +136,15 @@ watch(() => businessStore.activeBusinessId, businessId => {
   if (businessId) initialize(businessId)
 }, { immediate: true })
 
+// La gráfica son siempre los últimos 14 días, y las alertas y las últimas
+// ventas son una foto de hoy: cambiar de periodo solo recarga lo que depende
+// del rango.
+watch([period, monthOffset], () => {
+  const businessId = businessStore.activeBusinessId
+  if (!businessId) return
+  Promise.all([loadSummary(businessId), loadProducts(businessId)])
+})
+
 function openSale(sale: RecentSale) {
   toast.add({
     severity: 'info',
@@ -157,10 +166,14 @@ function openSale(sale: RecentSale) {
       </p>
     </header>
 
-    <div class="mb-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1" data-testid="dashboard-period">
-      <strong class="font-display text-[14px] tracking-[-.02em] capitalize">{{ periodLabel || 'Periodo actual' }}</strong>
-      <span v-if="comparisonLabel" class="text-[11.5px] text-muted">Comparado con {{ comparisonLabel }}</span>
-    </div>
+    <DashboardPeriodSelector
+      v-model:period="period"
+      v-model:month-offset="monthOffset"
+      class="mb-3.5"
+      :timezone="timezone"
+      :label="periodLabel"
+      :comparison-label="comparisonLabel"
+    />
 
     <DashboardKpiCards class="mb-3" :summary="summary" :loading="summaryLoading" />
 

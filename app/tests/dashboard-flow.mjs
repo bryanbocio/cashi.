@@ -22,6 +22,16 @@ function psql(query) {
   ], { encoding: 'utf8' }).trim()
 }
 
+/** Última línea útil: las consultas con `set_config` devuelven dos filas. */
+function psqlValue(query) {
+  return psql(query).split(/\r?\n/).map(line => line.trim()).filter(Boolean).at(-1) ?? ''
+}
+
+const MONTH_NAMES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
 // La venta de prueba se borra al final y el stock del seed se restaura entero.
 function cleanup() {
   psql(`
@@ -78,6 +88,29 @@ async function waitForServer() {
   throw new Error(`El servidor no respondió a tiempo.\n${serverOutput}`)
 }
 
+/** Compara solo los dígitos: el formato de moneda usa espacio duro y símbolo. */
+async function waitForMoney(locator, amount, description) {
+  const expected = String(amount)
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const text = await locator.innerText().catch(() => null)
+    if (text !== null && text.replace(/\D/g, '') === expected) return
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  const actual = await locator.innerText().catch(() => 'sin contenido')
+  throw new Error(`${description}: esperaba ${amount} y encontró «${actual}».`)
+}
+
+/** La etiqueta de periodo se muestra capitalizada por CSS. */
+async function waitForLabel(locator, expected, description) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const text = await locator.innerText().catch(() => null)
+    if (text && text.toLowerCase().includes(expected.toLowerCase())) return
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  const actual = await locator.innerText().catch(() => 'sin contenido')
+  throw new Error(`${description}: esperaba «${expected}» y encontró «${actual}».`)
+}
+
 async function waitForText(locator, expected, description) {
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const text = await locator.innerText().catch(() => null)
@@ -104,6 +137,23 @@ try {
       and e.spent_at = (current_timestamp at time zone (select timezone from public.business where id = '${demoBusinessId}'))::date;`))
   const netProfit = 76000 - expensesToday
   const netProfitLabel = new Intl.NumberFormat('es-CO').format(Math.abs(netProfit))
+
+  // Las etiquetas de mes se calculan aquí para que la prueba no dependa de la
+  // fecha real; los importes se leen del propio `metrics_summary`, que ya tiene
+  // sus 36 pruebas SQL.
+  function monthLabel(offset) {
+    const [year, month] = businessToday.split('-').map(Number)
+    const date = new Date(Date.UTC(year, month - 1 - offset, 1))
+    return `${MONTH_NAMES[date.getUTCMonth()]} ${date.getUTCFullYear()}`
+  }
+
+  function summaryRevenue(period, offset) {
+    return Number(psqlValue(`select set_config('request.jwt.claim.sub', '${demoUserId}', false);
+      select (public.metrics_summary('${demoBusinessId}', '${period}', ${offset}) ->> 'revenue')::bigint;`))
+  }
+
+  const monthRevenue = offset => summaryRevenue('month', offset)
+  const weekRevenue = summaryRevenue('7d', 0)
 
   await waitForServer()
   browser = await chromium.launch({ executablePath, headless: true })
@@ -142,8 +192,8 @@ try {
   if (chartDays !== 14) throw new Error(`La gráfica dibujó ${chartDays} días en vez de 14.`)
   const todayBar = page.locator(`[data-testid="chart-day-${businessToday}"]`)
   // Intl separa el símbolo con un espacio duro; se normaliza para comparar.
-  const todayLabel = await todayBar.getAttribute('title').then(value => value?.replace(/ /g, ' '))
-  if (!todayLabel?.includes('190.000') || !todayLabel.includes('gana $ 76.000')) {
+  const todayLabel = (await todayBar.getAttribute('title') ?? '').replace(/\s/g, ' ')
+  if (!todayLabel.includes('190.000') || !todayLabel.includes('gana $ 76.000')) {
     throw new Error(`La barra de hoy describe «${todayLabel}» en vez de la venta de 190.000 con 76.000 de ganancia.`)
   }
 
@@ -187,6 +237,53 @@ try {
   await waitForText(page.locator('[data-testid="inventory-count"]'), '1 producto', 'Inventario filtrado por margen estrecho')
   await waitForText(page.locator('body'), 'Bolsa de regalo', 'Producto con margen estrecho listado')
 
+  // --- F7.2 · Selector de periodo ---
+  await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' })
+  await waitForMoney(page.locator('[data-testid="kpi-revenue"]'), 190000, 'Ventas de hoy al volver al Resumen')
+
+  if (await page.locator('[data-testid="period-today"]').getAttribute('aria-pressed') !== 'true') {
+    throw new Error('El periodo Hoy no quedó marcado como activo al abrir el Resumen.')
+  }
+  if (await page.locator('[data-testid="month-nav"]').count()) {
+    throw new Error('Las flechas de mes se muestran fuera del periodo mensual.')
+  }
+
+  await page.locator('[data-testid="period-month"]').click()
+  await page.locator('[data-testid="month-nav"]').waitFor()
+  await waitForLabel(page.locator('[data-testid="period-label"]'), monthLabel(0), 'Etiqueta del mes actual')
+  await waitForMoney(page.locator('[data-testid="kpi-revenue"]'), monthRevenue(0), 'Ventas del mes actual')
+  await waitForLabel(page.locator('[data-testid="top-products-period"]'), monthLabel(0), 'Periodo en el título de rentabilidad')
+  if (!await page.locator('[data-testid="month-next"]').isDisabled()) {
+    throw new Error('La flecha hacia adelante quedó activa en el mes actual.')
+  }
+
+  await page.locator('[data-testid="month-prev"]').click()
+  await waitForLabel(page.locator('[data-testid="period-label"]'), monthLabel(1), 'Etiqueta del mes anterior')
+  await waitForMoney(page.locator('[data-testid="kpi-revenue"]'), monthRevenue(1), 'Ventas del mes anterior')
+  if (await page.locator('[data-testid="month-next"]').isDisabled()) {
+    throw new Error('La flecha hacia adelante siguió desactivada fuera del mes actual.')
+  }
+
+  // Las alertas y la cartera no dependen del periodo navegado.
+  await waitForText(page.locator('[data-testid="alert-count"]'), '3', 'Alertas tras cambiar de mes')
+  await waitForMoney(page.locator('[data-testid="kpi-receivable"]'), 790000, 'Cartera tras cambiar de mes')
+
+  await page.locator('[data-testid="month-select"]').click()
+  const monthCount = await page.getByRole('option').count()
+  if (monthCount !== 18) throw new Error(`El selector ofreció ${monthCount} meses en vez de 18.`)
+  await page.getByRole('option', { name: new RegExp(`^${monthLabel(3)}$`, 'i') }).click()
+  await waitForLabel(page.locator('[data-testid="period-label"]'), monthLabel(3), 'Etiqueta del mes elegido')
+  await waitForMoney(page.locator('[data-testid="kpi-revenue"]'), monthRevenue(3), 'Ventas del mes elegido')
+
+  await page.locator('[data-testid="period-7d"]').click()
+  if (await page.locator('[data-testid="month-nav"]').count()) {
+    throw new Error('Las flechas de mes siguieron visibles en el periodo de 7 días.')
+  }
+  await waitForMoney(page.locator('[data-testid="kpi-revenue"]'), weekRevenue, 'Ventas de los últimos 7 días')
+
+  await page.locator('[data-testid="period-today"]').click()
+  await waitForMoney(page.locator('[data-testid="kpi-revenue"]'), 190000, 'Ventas al volver a Hoy')
+
   // Móvil: los paneles se apilan y ningún control queda por debajo de 44 px.
   await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' })
   await page.setViewportSize({ width: 390, height: 844 })
@@ -196,6 +293,23 @@ try {
   if (kpiColumns !== 2) throw new Error(`Los KPI se dibujaron en ${kpiColumns} columnas en móvil en vez de 2.`)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   if (overflow > 0) throw new Error(`El Resumen desborda ${overflow} px a lo ancho en móvil.`)
+
+  // El selector ocupa el ancho completo, usa etiquetas cortas y oculta la nota.
+  const segmentedWidth = await page.locator('[data-testid="period-today"]')
+    .evaluate(el => el.parentElement.getBoundingClientRect().width)
+  const contentWidth = await page.locator('[data-testid="dashboard-period"]')
+    .evaluate(el => el.getBoundingClientRect().width)
+  if (segmentedWidth < contentWidth - 1) {
+    throw new Error(`El segmentado midió ${Math.round(segmentedWidth)} px de ${Math.round(contentWidth)} disponibles en móvil.`)
+  }
+  await waitForText(page.locator('[data-testid="period-7d"]'), '7 d', 'Etiqueta corta del segmentado en móvil')
+  if (await page.locator('[data-testid="period-note"]').isVisible()) {
+    throw new Error('La nota de comparación debe ocultarse en móvil.')
+  }
+
+  // Las flechas y el selector de mes también deben cumplir los 44 px.
+  await page.locator('[data-testid="period-month"]').click()
+  await page.locator('[data-testid="month-nav"]').waitFor()
 
   // Solo el contenido de la vista: la marca del encabezado la fija el layout.
   const smallTargets = await page.evaluate(() => [...document.querySelectorAll('main a, main button, main input, main [role="combobox"]')]
@@ -208,7 +322,7 @@ try {
   if (smallTargets.length) throw new Error(`Controles por debajo de 44 px en móvil: ${smallTargets.join(', ')}`)
 
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
-  console.log('PASS: el Resumen mostró KPIs, gráfica de 14 días, rentabilidad, últimas ventas y alertas navegables en escritorio y móvil.')
+  console.log('PASS: el Resumen mostró KPIs, gráfica de 14 días, rentabilidad, últimas ventas, alertas navegables y el selector de periodo en escritorio y móvil.')
 } catch (error) {
   const pageText = await page?.locator('body').innerText().catch(() => '')
   console.error(`URL final: ${page?.url() ?? 'sin página'}\nErrores del navegador: ${browserErrors.join(' | ') || 'ninguno'}\nContenido: ${pageText?.slice(0, 3500)}`)
