@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 26 de agosto de 2026, después de completar S5.1. **Las Fases 3 y 4 están terminadas** y la Fase 5 ya tiene el backend seguro de órdenes de compra.
+Actualizado: 26 de agosto de 2026, después de completar S5.2. **Las Fases 3 y 4 están terminadas** y el backend de Compras de la Fase 5 está completo.
 
 ## Preferencias del usuario
 
@@ -48,8 +48,9 @@ Completado y versionado:
 | Mejora F4.1/F2.1 | `98e68bd` | Edición/borrado de gastos y valoración total del inventario |
 | F4.2 | `c73d172` | Vista Fiados con resumen, vencidos, lista adaptable y abonos |
 | S5.1 | `8c266ef` | CRUD protegido y recepción idempotente de órdenes de compra |
+| S5.2 | `cf74bdf` | Sugerencias de reposición con cantidades y costos estimados |
 
-La siguiente tarea del `PLAN.md` es **S5.2 · `suggest_purchase`**.
+La siguiente tarea del `PLAN.md` es **F5.1 · Vista Compras**.
 
 ## Qué está construido y qué no
 
@@ -68,9 +69,9 @@ Todavía son `PagePlaceholder`, sin datos:
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
 (S3.2), `period_range` (S7.1), el CRUD de `purchase_order`/`purchase_line` y
-`receive_purchase_order` (S5.1). La Caja registra ventas pero no hay pantalla para
+`receive_purchase_order` (S5.1), y `suggest_purchase` (S5.2). La Caja registra ventas pero no hay pantalla para
 verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
-la Fase 8. Compras se conectará en F5.1 cuando también exista `suggest_purchase`.
+la Fase 8. Compras ya puede conectarse en F5.1.
 
 ## Convenciones de trabajo
 
@@ -243,10 +244,14 @@ npm run db:types
 - `receive_purchase_order(p_order)` bloquea primero la orden. Si ya está recibida retorna sin efectos; si está cancelada o vacía falla. Recorre productos por UUID para evitar deadlocks, suma `qty` al stock, reemplaza el costo actual con `unit_cost`, escribe movimientos `PURCHASE` y finalmente guarda estado y fecha de recepción.
 - El costo actualizado solo afecta ventas futuras: las ventas históricas conservan el `unit_cost` congelado en `sale_line`, conforme a la regla central del plan.
 - `supabase/tests/receive-purchase-order.concurrent.cjs` lanza diez recepciones simultáneas de la misma orden y exige exactamente dos movimientos, 12 unidades y un único cambio de costo/stock.
+- `suggest_purchase(p_business)` devuelve JSON con `product_count`, `total_units`, `estimated_total` y `lines`. Cada línea conserva producto, SKU, categoría, proveedor, stock, mínimo, cantidad sugerida, costo unitario y costo estimado.
+- Solo sugiere productos activos con `stock < min_stock`; estar exactamente en el mínimo no cuenta. La cantidad se calcula en PostgreSQL como `max(min_stock × 2 − stock, 1)`, incluso con stock negativo, y un costo actual de cero mantiene la línea con estimado cero.
+- En el seed demo la sugerencia es CUI-002 × 7 y ACC-003 × 6: 13 unidades por $108.500. Las 24 pruebas de S5.2 cubren fórmula, agregados, proveedor por línea, límite estricto, stock negativo, costo cero, inactivos, sesión e aislamiento.
+- El prototipo interactivo define que **Crear orden sugerida** crea una sola orden con la etiqueta “Varios proveedores”. En F5.1 la orden mixta puede usar `supplier_id = null`; la interfaz debe derivar esa etiqueta de las líneas, sin borrar la información de proveedor que entrega `suggest_purchase`.
 
 ## Última validación
 
-Validaciones vigentes al completar S5.1:
+Validaciones vigentes al completar S5.2:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -261,20 +266,20 @@ Validaciones vigentes al completar S5.1:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 362 pruebas SQL, incluidas 35 de órdenes de compra; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 386 pruebas SQL, incluidas 35 de órdenes de compra y 24 de sugerencias; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S5.2
+## Próximo trabajo: F5.1
 
-Sugerencia de compra:
+Vista Compras:
 
-1. Implementar `suggest_purchase(p_business)` sobre productos activos con `stock < min_stock`.
-2. Sugerir `max(min_stock × 2 − stock, 1)` unidades por producto, exactamente como define la regla 2.8 del plan.
-3. Incluir el costo actual como estimado y devolver un total calculado en PostgreSQL.
-4. Cubrir productos en el límite, stock negativo, costo cero, aislamiento y sumas enteras antes de construir F5.1.
+1. Reemplazar `/compras` por el banner de sugerencia y la lista real de órdenes en tabla/tarjetas.
+2. Conectar **Crear orden sugerida** a `next_doc_code`, `purchase_order` y `purchase_line` usando una sola orden mixta con `supplier_id = null`, como indica el prototipo.
+3. Mostrar código, proveedor/“Varios proveedores”, unidades, costo y estado; las pendientes llevan acción **Recibir** conectada a `receive_purchase_order`.
+4. Tras recibir, actualizar inmediatamente la orden y los valores del inventario; validar escritorio, móvil y objetivos táctiles de 44 px.
 
 ## Fuentes de diseño disponibles
 
