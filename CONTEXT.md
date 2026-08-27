@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar S6.2. **Las Fases 3, 4 y 5 están terminadas** y el backend de la Fase 6 está completo.
+Actualizado: 27 de agosto de 2026, después de completar F6.1. **Las Fases 3, 4, 5 y 6 están terminadas**.
 
 ## Preferencias del usuario
 
@@ -52,8 +52,9 @@ Completado y versionado:
 | F5.1 | `524a820` | Vista Compras, creación atómica de sugerencias y recepción desde la interfaz |
 | S6.1 | `2df48e1` | Creación de cotizaciones y listados protegidos de resumen/líneas |
 | S6.2 | `3b93b3c` | Conversión idempotente de cotizaciones a venta o fiado |
+| F6.1 | `5b8f314` | Guardar desde Caja, vigencia efectiva y vista adaptable de Cotizaciones |
 
-La siguiente tarea del `PLAN.md` es **F6.1 · Vista Cotizaciones + guardar desde Caja**.
+La siguiente tarea pendiente del `PLAN.md` es **S7.2 · `metrics_summary`**. S7.1 ya fue completada anticipadamente.
 
 ## Qué está construido y qué no
 
@@ -65,18 +66,18 @@ Vistas conectadas a datos reales:
 - `/fiados` — cartera total, vencidos, deudores y registro de abonos
 - `/gastos` — resumen mensual, distribución, filtros, alta, edición y borrado
 - `/compras` — sugerencia de reposición, órdenes pendientes/recibidas y recepción de mercancía
+- `/cotizaciones` — valor vigente, listado, conversión a contado/fiado y borrado
 - `/ajustes` — negocio, logo, cuenta y contraseña
 
 Todavía son `PagePlaceholder`, sin datos:
 
-- `/` (Resumen), `/cotizaciones`, `/reportes`
+- `/` (Resumen), `/reportes`
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
-(S3.2), `period_range` (S7.1), `create_quote`, `v_quote_detail` y
-`v_quote_line_detail` (S6.1), y `convert_quote` (S6.2). La Caja registra ventas pero no hay pantalla para
+(S3.2) y `period_range` (S7.1). La Caja registra ventas pero no hay pantalla para
 verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
-la Fase 8. Cotizaciones todavía no se guardan desde Caja ni tienen pantalla real;
-eso llega en F6.1.
+la Fase 8. La acción Ver/PDF de Cotizaciones informa que el visor llegará en F8.1;
+no simula una descarga antes de que exista `document-pdf`.
 
 ## Convenciones de trabajo
 
@@ -271,12 +272,18 @@ npm run db:types
 - Un índice único parcial sobre `sale(quote_id)` garantiza físicamente una sola venta por cotización, incluso ante errores de integración o solicitudes simultáneas.
 - La conversión sigue literalmente el contrato de `create_sale`: usa **precio, costo, nombre y categoría vigentes al cobrar**. La cotización conserva por separado sus snapshots y total originales para el documento; si el catálogo cambió, el total de la venta puede diferir del cotizado.
 - `p_due` solo se conserva al convertir a `CREDIT`. El fiado exige que la cotización tenga cliente; una conversión rechazada deja la cotización abierta, el stock intacto y no consume código `FAC-`.
-- Cotizaciones `CANCELLED` o `EXPIRED` no se convierten. S6.2 no cambia automáticamente `OPEN` a `EXPIRED` al pasar `valid_until`, porque el plan no define cuándo persistir esa transición; F6.1 debe representar claramente la vigencia y resolver ese comportamiento antes de exponer la acción.
+- Cotizaciones `CANCELLED` o `EXPIRED` no se convierten. Por decisión del usuario, una cotización `OPEN` cuya `valid_until` ya pasó se presenta como **Vencida** y se bloquea su conversión.
 - `supabase/tests/convert-quote.concurrent.cjs` dispara 20 conversiones simultáneas de la misma cotización y exige una venta, una línea, un movimiento, un código consumido y un solo descuento de stock. Limpia todos sus fixtures y restaura la secuencia.
+- La vigencia es efectiva, no un cron que reescribe filas: `v_quote_detail` y `v_quote_line_detail` derivan `EXPIRED` comparando `valid_until` con la fecha actual de `business.timezone`. El estado persistido sigue `OPEN`, de modo que una vencida puede eliminarse con la política existente.
+- El trigger `validate_sale_quote_link` vuelve a comprobar estado, negocio y fecha local dentro de la transacción que enlaza `sale.quote_id`. Si la cotización venció con la pantalla abierta, toda la creación de venta se revierte: no quedan venta, movimientos, descuento de stock ni código consumido.
+- Caja ofrece **Guardar cotización**. Abre un modal con vigencia predeterminada de 15 días y mínimo hoy según la zona del negocio; usa el carrito y cliente actuales, limpia al guardar y navega a `/cotizaciones`.
+- Las cotizaciones no tienen descuento. Si el carrito tiene uno, Caja bloquea la apertura del modal y pide retirarlo; el total cotizado es el subtotal completo.
+- `/cotizaciones` suma solo documentos vigentes, conserva las vencidas visibles y presenta tabla en escritorio/tarjetas en móvil. Cobrar y A fiado llaman a `convert_quote`; A fiado queda desactivado sin cliente y ambas conversiones quedan desactivadas al vencer. Ver/PDF muestra el límite temporal de F8.1 y Eliminar exige confirmación.
+- `app/tests/quotes-flow.mjs` cubre descuento bloqueado, vigencia de 15 días, creación sin efecto contable, conversión a fiado y contado, estado vencido, eliminación, acción documental pendiente y objetivos táctiles móviles de 44 px. Limpia ventas, movimientos, cotizaciones, secuencias y stock.
 
 ## Última validación
 
-Validaciones vigentes al completar S6.2:
+Validaciones vigentes al completar F6.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -287,26 +294,21 @@ Validaciones vigentes al completar S6.2:
 - `npm run app:test:inventory-import`: alta manual con categoría y proveedor nuevos, aviso de SKU repetido, importación con una fila válida y una con decimales, y comprobación en PostgreSQL de lo guardado. Limpia sus fixtures al terminar.
 - `npm run app:test:inventory`: valoración completa al costo independiente de los filtros, listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, actualización del total al ajustar existencias, movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
 - `npm run app:test:purchases`: crea la orden sugerida mixta, comprueba que no cambie stock al crear, la recibe desde la interfaz, valida stock/costos/movimientos en PostgreSQL y la tarjeta móvil accesible. No deja fixtures.
+- `npm run app:test:quotes`: guarda desde Caja con vigencia de 15 días, bloquea descuento, comprueba cero efectos de inventario al guardar, convierte a fiado y contado, bloquea vencidas, elimina y valida acciones móviles de 44 px. No deja fixtures.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
 - `npm run app:test:business-switcher`: dos negocios, contexto visible actualizado y, ya sobre el Inventario real, el negocio nuevo sin productos frente a los 9 del demo; versión móvil y cierre de sesión.
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 504 pruebas SQL, incluidas 51 de creación/listados y 46 de conversión de cotizaciones; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, 40 cotizaciones concurrentes sin efectos contables, 20 conversiones simultáneas idempotentes, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 517 pruebas SQL, incluidas 13 de vigencia efectiva, 51 de creación/listados y 46 de conversión de cotizaciones; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, 40 cotizaciones concurrentes sin efectos contables, 20 conversiones simultáneas idempotentes, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F6.1
+## Próximo trabajo: S7.2
 
-Vista Cotizaciones + guardar desde Caja:
-
-1. Añadir **Guardar cotización** en Caja, con `valid_until`, usando el carrito y cliente actuales sin descontar stock.
-2. Reemplazar `/cotizaciones` por el resumen y listado real del prototipo: código, detalle, cliente, total y acciones Cobrar, A fiado, Ver/PDF y Eliminar; tabla en escritorio y tarjetas en móvil.
-3. Conectar Cobrar/A fiado a `convert_quote`; atenuar y bloquear A fiado cuando no haya cliente, y refrescar lista e inventario tras convertir.
-4. Definir cómo se refleja `valid_until` cuando una cotización `OPEN` ya venció, porque el plan incluye estado `EXPIRED` pero no especifica transición automática.
-5. El visor/PDF real pertenece a F8.1; en F6.1 la acción puede preparar la apertura del documento sin implementar todavía la Edge Function.
+Implementar `metrics_summary` con ventas, ganancia bruta, gastos, ganancia neta y por cobrar, además de los porcentajes y la comparación contra el rango anterior. Debe reutilizar `period_range` (S7.1), respetar `business.timezone` y mantener coherencia entre `gross_margin`, `expense_ratio` y `net_margin`.
 
 ## Fuentes de diseño disponibles
 
