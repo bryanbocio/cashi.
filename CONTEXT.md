@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar F7.2. **Las Fases 3, 4, 5 y 6 están terminadas** la capa de datos de la Fase 7 está completa y el Resumen ya la consume.
+Actualizado: 27 de agosto de 2026, después de completar F7.3. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
 
 ## Preferencias del usuario
 
@@ -58,8 +58,9 @@ Completado y versionado:
 | — | `94c11a9` | Prueba del selector reparada tras convertir Gastos en vista real |
 | F7.1 | `a0ab9ad` | Vista Resumen: KPIs, gráfica de 14 días, rentabilidad, últimas ventas y alertas |
 | F7.2 | `b168fb4` | Selector de periodo con segmentado, flechas y 18 meses navegables |
+| F7.3 | `217e7e1` | Vista Reportes: cifras, ganancia por categoría, mejor/peor, historial y CSV |
 
-La siguiente tarea pendiente del `PLAN.md` es **F7.3 · Vista Reportes**.
+La siguiente tarea pendiente del `PLAN.md` es **S8.1 · Edge Function `document-pdf`**.
 
 ## Qué está construido y qué no
 
@@ -73,17 +74,17 @@ Vistas conectadas a datos reales:
 - `/compras` — sugerencia de reposición, órdenes pendientes/recibidas y recepción de mercancía
 - `/cotizaciones` — valor vigente, listado, conversión a contado/fiado y borrado
 - `/` (Resumen) — selector de periodo, KPIs, gráfica de 14 días, rentabilidad por producto, últimas ventas y alertas navegables
+- `/reportes` — cifras del periodo, ganancia por categoría, mejor y peor producto, historial y exportación CSV
 - `/ajustes` — negocio, logo, cuenta y contraseña
 
-Todavía es `PagePlaceholder`, sin datos:
+**Ninguna vista queda como `PagePlaceholder`.** Al conectar `/reportes` el
+componente se quedó sin ningún consumidor y se eliminó; el `data-testid`
+`active-business-name` que usaban tres pruebas vive ahora en el encabezado del
+Resumen.
 
-- `/reportes`
-
-Backend disponible y **sin interfaz que lo use**: `void_sale` (S3.2) y
-`metrics_categories` (S7.3), que espera a F7.3 (Reportes). La Caja registra
-ventas y el Resumen lista las últimas seis, pero no hay pantalla para verlas
-completas ni anularlas; eso llega con F7.3 y el visor de documentos de
-la Fase 8. La acción Ver/PDF de Cotizaciones informa que el visor llegará en F8.1;
+Backend disponible y **sin interfaz que lo use**: solo `void_sale` (S3.2).
+Reportes lista las ventas del periodo y abre cada una, pero anularlas necesita
+el visor de documentos de la Fase 8. La acción Ver/PDF de Cotizaciones informa que el visor llegará en F8.1;
 no simula una descarga antes de que exista `document-pdf`.
 
 ## Convenciones de trabajo
@@ -132,6 +133,8 @@ npm run app:test:expenses
 npm run app:test:inventory
 npm run app:test:inventory-import
 npm run app:test:purchases
+npm run app:test:quotes
+npm run app:test:reports
 npm run app:test:onboarding
 npm run app:test:settings
 npm run app:test:session-business
@@ -314,16 +317,25 @@ npm run db:types
 - El KPI **Por cobrar** navega a `/fiados` y es la única cifra que no depende del periodo: es una foto de hoy, y así lo dice su subtítulo.
 - Cada alerta lleva a su sección. `/inventario` lee `?filter=low` y `?filter=thin` desde la URL y deja el filtro aplicado al llegar.
 - Las últimas ventas muestran código, artículos y cliente porque `v_sale_detail` no expone el nombre del primer producto. Al tocar una venta se avisa que el visor llega en F8.1, igual que en Cotizaciones.
+- `/reportes` usa el mismo `UiPeriodSelector` pero abre en **mes en curso**, no en Hoy: es una vista de análisis, no de operación del día.
+- Las cuatro cifras salen de `metrics_summary`. El costo de venta no viaja en el contrato: es `revenue - gross_profit`, y su peso sobre los ingresos es el complemento exacto del margen bruto.
+- La ganancia por categoría es el único consumidor de `metrics_categories`. La barra compara contra la categoría más rentable del periodo; una ganancia negativa no dibuja barra para no invertir la escala.
+- El mejor y el peor producto son el primero y el último de `metrics_products`, que ya llega ordenado por ganancia. Se pide con `p_limit = 100`, el techo de la RPC: un negocio que venda más de cien productos distintos en un periodo vería como «menos rentable» el número cien. Está anotado en `utils/reports.ts`.
+- Con un solo producto vendido no se muestra «menos rentable»: sería el mismo que el mejor.
+- El historial se corta con los instantes exactos de `period_range`, no con fechas convertidas en el cliente. Es la razón de que la vista llame a esa RPC además de a `metrics_summary`.
+- El CSV se arma en el cliente (`buildSalesCsv`) y se descarga con un `Blob`: separador `;` y BOM para que Excel en español lo abra con columnas y tildes correctas, y montos enteros sin formato para que la hoja pueda sumarlos.
+- `app/tests/reports-flow.mjs` crea dos ventas de hoy en tres categorías —una con descuento— y comprueba las cuatro cifras contra `metrics_summary`, el orden de las categorías, el mejor y el peor producto, el historial, el aviso documental, el contenido real del CSV descargado, el cambio de periodo y la versión móvil. No deja fixtures.
 - `app/tests/dashboard-flow.mjs` crea una venta de hoy con `create_sale`, comprueba KPIs, margen, las 14 barras con la de hoy etiquetada, el orden de la rentabilidad, la venta reciente y su aviso documental, los tres grupos de alertas con su orden operativo, la navegación a Inventario con cada filtro, el selector de periodo completo (mes actual, mes anterior, los 18 meses, flechas y vuelta a Hoy) y la versión móvil con segmentado de ancho completo, etiquetas cortas, sin desbordes ni controles bajo 44 px. Las etiquetas de mes se calculan en la prueba para no depender de la fecha real; los importes se leen de `metrics_summary`. Borra la venta y restaura el stock del seed.
 - `supabase/tests/metrics_detail.test.sql` aporta 73 casos sobre reparto del descuento, serie continua con días en cero, productos y categorías reconciliados contra `metrics_summary`, producto borrado, márgenes indefinidos, los cuatro grupos de alertas con sus bordes (vence hoy no está vencido, orden recibida excluida, producto inactivo excluido), límites de entrada, permisos y aislamiento.
 
 ## Última validación
 
-Validaciones vigentes al completar F7.2:
+Validaciones vigentes al completar F7.3:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
+- `npm run app:test:reports`: cuatro cifras del mes, ganancia por categoría ordenada, mejor y peor producto, historial del periodo, aviso documental, CSV descargado y verificado línea por línea, cambio a Hoy y versión móvil accesible.
 - `npm run app:test:dashboard`: KPIs de la venta del día, margen del 40 %, gráfica de 14 días, rentabilidad ordenada, última venta con su aviso documental, tres alertas en orden, navegación filtrada a Inventario y el selector de periodo con sus 18 meses; en móvil, dos columnas de KPI, segmentado de ancho completo, sin desbordes y sin controles bajo 44 px.
 - `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. En móvil comprueba que la barra de cobro queda anclada abajo, que el botón de escritorio no está visible y que ningún control baja de 44 px. Borra las ventas y restaura el stock del seed.
 - `npm run app:test:credits`: resumen de $790.000, tres deudores, un vencido, abono completo de $280.000, desaparición del cliente, cartera final de $510.000, actualización del total mensual y versión móvil sin controles menores de 44 px. No deja fixtures.
@@ -343,24 +355,27 @@ Validaciones vigentes al completar F7.2:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F7.3
+## Próximo trabajo: S8.1
 
-Construir `/reportes`, la última vista que sigue siendo `PagePlaceholder`.
-Tampoco hace falta SQL nuevo: `metrics_summary` da las cuatro cifras con su
-porcentaje sobre ingresos, `metrics_categories` la ganancia por categoría —hoy
-sin ningún consumidor— y `metrics_products` el mejor y el peor producto.
+Edge Function `document-pdf`: una sola plantilla para factura y cotización, con
+el encabezado del negocio y su logo, cliente, líneas, total y nota. Valida
+sesión y membresía como `import-products`, que es el precedente de Edge Function
+del proyecto. El PDF debe abrir en móvil y escritorio, pesar menos de 300 kB y
+respetar la tipografía embebida.
 
 Puntos a resolver:
 
-- El historial de ventas sale de `v_sale_detail`, que ya expone código,
-  cliente, método, total y ganancia. Es la misma vista que usa el Resumen, pero
-  aquí va completa y acotada al periodo.
-- El selector de periodo es el mismo componente `DashboardPeriodSelector`; si se
-  reutiliza tal cual conviene moverlo fuera de `components/dashboard/`.
-- La exportación CSV es la única pieza sin precedente en el proyecto: hay que
-  decidir con el usuario si se genera en el cliente o si merece una función.
-- El peor producto necesita criterio de negocio: si es el de menor margen, el de
-  menor ganancia o el de mayor pérdida. Preguntarlo antes de implementarlo.
+- Elegir la librería de PDF para Deno y comprobar su licencia antes de usarla,
+  igual que se hizo con PrimeVue. Las tipografías del proyecto —Space Grotesk,
+  IBM Plex Sans e IBM Plex Mono— están en `app/node_modules/@fontsource`, pero
+  la función no puede depender del `node_modules` del frontend.
+- El logo vive en Storage privado; hay que leerlo con la sesión del usuario, no
+  con la `service_role`.
+- Las líneas de una venta salen de `sale_line` con sus valores congelados, y las
+  de una cotización de `quote_line`. Conviene una sola consulta por tipo y una
+  única plantilla, como pide el plan.
+- F8.1 consumirá esta función desde el visor; hasta entonces Cotizaciones,
+  Resumen y Reportes avisan con un toast de que el visor llega en esa etapa.
 
 ## Fuentes de diseño disponibles
 
