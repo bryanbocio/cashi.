@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar F6.1. **Las Fases 3, 4, 5 y 6 están terminadas**.
+Actualizado: 27 de agosto de 2026, después de completar S7.2. **Las Fases 3, 4, 5 y 6 están terminadas** y el resumen financiero de la Fase 7 ya está disponible.
 
 ## Preferencias del usuario
 
@@ -42,6 +42,7 @@ Completado y versionado:
 | F3.1 | `e260579` | Vista Caja: buscador, carrito con margen y cobro |
 | F3.2 | `a33a884` | Barra fija de cobro en móvil y área táctil de 44 px |
 | S7.1 | `8d7088a` | Rangos de calendario por zona horaria del negocio |
+| S7.2 | `4400fee` | Resumen financiero, cartera y comparativas contra el periodo anterior |
 | S4.1 | `fc6b530` | CRUD, filtros y distribución por categoría de Gastos |
 | S4.2 | `50eb766` | Vista de deuda y abonos seguros de Fiados |
 | F4.1 | `8907ccc` | Vista Gastos con resumen, filtros, alta y versión móvil |
@@ -54,7 +55,7 @@ Completado y versionado:
 | S6.2 | `3b93b3c` | Conversión idempotente de cotizaciones a venta o fiado |
 | F6.1 | `5b8f314` | Guardar desde Caja, vigencia efectiva y vista adaptable de Cotizaciones |
 
-La siguiente tarea pendiente del `PLAN.md` es **S7.2 · `metrics_summary`**. S7.1 ya fue completada anticipadamente.
+La siguiente tarea pendiente del `PLAN.md` es **S7.3 · métricas diarias, productos, categorías y alertas**.
 
 ## Qué está construido y qué no
 
@@ -74,7 +75,7 @@ Todavía son `PagePlaceholder`, sin datos:
 - `/` (Resumen), `/reportes`
 
 Backend disponible y **sin interfaz que lo use**: `void_sale`, `v_sale_detail`
-(S3.2) y `period_range` (S7.1). La Caja registra ventas pero no hay pantalla para
+(S3.2), `period_range` (S7.1) y `metrics_summary` (S7.2). La Caja registra ventas pero no hay pantalla para
 verlas ni anularlas; eso llega con F7.3 (Reportes) y el visor de documentos de
 la Fase 8. La acción Ver/PDF de Cotizaciones informa que el visor llegará en F8.1;
 no simula una descarga antes de que exista `document-pdf`.
@@ -280,10 +281,17 @@ npm run db:types
 - Las cotizaciones no tienen descuento. Si el carrito tiene uno, Caja bloquea la apertura del modal y pide retirarlo; el total cotizado es el subtotal completo.
 - `/cotizaciones` suma solo documentos vigentes, conserva las vencidas visibles y presenta tabla en escritorio/tarjetas en móvil. Cobrar y A fiado llaman a `convert_quote`; A fiado queda desactivado sin cliente y ambas conversiones quedan desactivadas al vencer. Ver/PDF muestra el límite temporal de F8.1 y Eliminar exige confirmación.
 - `app/tests/quotes-flow.mjs` cubre descuento bloqueado, vigencia de 15 días, creación sin efecto contable, conversión a fiado y contado, estado vencido, eliminación, acción documental pendiente y objetivos táctiles móviles de 44 px. Limpia ventas, movimientos, cotizaciones, secuencias y stock.
+- `metrics_summary(p_business, p_period, p_month_offset)` devuelve el contrato JSON del plan con rango local `[from, to)`, ingresos, ganancia bruta, gastos, ganancia neta, cartera, conteos y siete porcentajes/comparativas redondeados a una decimal.
+- Solo cuentan ventas `CONFIRMED`. La ganancia usa `sale_line.unit_price` y `unit_cost` congelados y resta `sale.discount` una sola vez por venta; una venta anulada no aporta ingresos, ganancia ni conteo.
+- Los gastos se cortan por `expense.spent_at` usando las fechas de calendario de la zona del negocio. Así, ventas (`timestamptz`) y gastos (`date`) comparten exactamente el periodo definido por `period_range`.
+- `receivable` y `debtors_count` son una fotografía global actual, independiente del periodo navegado: crédito confirmado menos abonos, limitado a cero por cliente. Un cliente pagado por completo no cuenta como deudor.
+- `revenue_change` y `net_profit_change` comparan montos en porcentaje. `gross_margin`, `expense_ratio` y `net_margin` describen el periodo actual; los cambios de margen/proporción se entregan en puntos porcentuales. Un divisor cero produce `0`, siguiendo el prototipo y manteniendo completo el contrato JSON.
+- `private.metrics_summary_at` comparte la implementación con la RPC pero acepta un reloj explícito para pruebas deterministas. No tiene permisos para `authenticated`; `public.metrics_summary` usa `current_timestamp`, valida membresía y es la única entrada cliente.
+- `supabase/tests/metrics_summary.test.sql` aporta 36 casos sobre límites locales, mes anterior, descuentos, anulaciones, costo congelado, gastos, cartera global, cliente saldado, coherencia de márgenes, periodo vacío, sesión, permisos y aislamiento.
 
 ## Última validación
 
-Validaciones vigentes al completar F6.1:
+Validaciones vigentes al completar S7.2:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -300,15 +308,15 @@ Validaciones vigentes al completar F6.1:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 517 pruebas SQL, incluidas 13 de vigencia efectiva, 51 de creación/listados y 46 de conversión de cotizaciones; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, 40 cotizaciones concurrentes sin efectos contables, 20 conversiones simultáneas idempotentes, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 553 pruebas SQL, incluidas 36 de `metrics_summary`, 13 de vigencia efectiva, 51 de creación/listados y 46 de conversión de cotizaciones; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, 40 cotizaciones concurrentes sin efectos contables, 20 conversiones simultáneas idempotentes, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S7.2
+## Próximo trabajo: S7.3
 
-Implementar `metrics_summary` con ventas, ganancia bruta, gastos, ganancia neta y por cobrar, además de los porcentajes y la comparación contra el rango anterior. Debe reutilizar `period_range` (S7.1), respetar `business.timezone` y mantener coherencia entre `gross_margin`, `expense_ratio` y `net_margin`.
+Implementar `metrics_daily`, `metrics_products`, `metrics_categories` y `metrics_alerts`. Las tres métricas de rentabilidad deben compartir los mismos rangos de S7.1/S7.2; en particular, `metrics_products` no puede usar un periodo distinto al resumen. Las alertas deben cubrir stock bajo, fiados vencidos, compras sin recibir y margen estrecho.
 
 ## Fuentes de diseño disponibles
 
