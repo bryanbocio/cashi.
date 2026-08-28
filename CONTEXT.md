@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar F7.3. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
+Actualizado: 27 de agosto de 2026, después de completar S8.1. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
 
 ## Preferencias del usuario
 
@@ -59,8 +59,10 @@ Completado y versionado:
 | F7.1 | `a0ab9ad` | Vista Resumen: KPIs, gráfica de 14 días, rentabilidad, últimas ventas y alertas |
 | F7.2 | `b168fb4` | Selector de periodo con segmentado, flechas y 18 meses navegables |
 | F7.3 | `217e7e1` | Vista Reportes: cifras, ganancia por categoría, mejor/peor, historial y CSV |
+| — | `ca0af42` | Puerto propio para las tres pruebas que chocaban con el servidor de desarrollo |
+| S8.1 | `a0c0443` | Edge Function `document-pdf`: plantilla única de factura y cotización |
 
-La siguiente tarea pendiente del `PLAN.md` es **S8.1 · Edge Function `document-pdf`**.
+La siguiente tarea pendiente del `PLAN.md` es **F8.1 · Visor de documento**.
 
 ## Qué está construido y qué no
 
@@ -82,9 +84,10 @@ componente se quedó sin ningún consumidor y se eliminó; el `data-testid`
 `active-business-name` que usaban tres pruebas vive ahora en el encabezado del
 Resumen.
 
-Backend disponible y **sin interfaz que lo use**: solo `void_sale` (S3.2).
-Reportes lista las ventas del periodo y abre cada una, pero anularlas necesita
-el visor de documentos de la Fase 8. La acción Ver/PDF de Cotizaciones informa que el visor llegará en F8.1;
+Backend disponible y **sin interfaz que lo use**: `void_sale` (S3.2) y la Edge
+Function `document-pdf` (S8.1). Cotizaciones, Resumen y Reportes ya abren cada
+documento, pero todavía muestran el aviso de que el visor llega en F8.1: esa es
+justo la tarea que los conecta. La acción Ver/PDF de Cotizaciones informa que el visor llegará en F8.1;
 no simula una descarga antes de que exista `document-pdf`.
 
 ## Convenciones de trabajo
@@ -96,6 +99,31 @@ no simula una descarga antes de que exista `document-pdf`.
   aislamiento entre negocios.
 - Toda regla de la §2 del `PLAN.md` que se toque necesita prueba. Dinero y
   periodos no se dan por buenos sin test.
+
+## Documentos
+
+- `supabase/functions/document-pdf` genera factura y cotización con **una sola
+  plantilla**: encabezado del negocio con logo, identificación a la derecha,
+  tabla de líneas, totales y nota. Se pide con `POST { type, id }`.
+- Usa la sesión de quien llama, nunca la `service_role`: si la RLS no deja ver
+  la venta, la función responde 404. El logo se descarga del bucket privado con
+  esa misma sesión, y una ruta rota no impide componer el documento.
+- El documento nunca imprime costos ni ganancia: es un papel para el cliente.
+- `pdf-lib` y `@pdf-lib/fontkit`, ambas MIT, elegidas con el usuario. Supabase
+  corre Deno sin navegador, así que Puppeteer no era opción.
+- Las tipografías viajan como base64 en `_shared/fonts/index.ts`, generado por
+  `build-fonts.cjs`. Dos motivos, los dos documentados en ese script: el runtime
+  solo empaqueta módulos importados —un `.ttf` suelto no llega al worker— y
+  `@pdf-lib/fontkit` no descomprime los WOFF de `@fontsource`, así que hay que
+  reconstruir la TTF. IBM Plex es OFL 1.1 y su licencia viaja al lado.
+- **No se usa `subset: true`**: el subsetter de fontkit falla dentro del runtime
+  de Edge Functions aunque funcione en Deno a secas. Con las tres fuentes
+  completas el PDF pesa unos 69 kB, muy por debajo del techo de 300 kB.
+- `_shared/document.ts` es lógica pura y se prueba desde Node con
+  `--experimental-strip-types`, sin dependencias nuevas.
+- `npm run db:test:documents` cubre las 25 reglas del modelo (totales, notas,
+  sellos de ANULADA/VENCIDA/CONVERTIDA, paginación) y 20 del contrato HTTP
+  (sesión, método, tipo, aislamiento, tamaño, nombre de archivo y logo).
 
 ## Stack instalado
 
@@ -330,7 +358,7 @@ npm run db:types
 
 ## Última validación
 
-Validaciones vigentes al completar F7.3:
+Validaciones vigentes al completar S8.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -349,33 +377,31 @@ Validaciones vigentes al completar F7.3:
 - `npm run app:test:onboarding`: registro, confirmación, login, creación y activación del negocio; comprobación de `OWNER`, categorías y secuencias en PostgreSQL.
 - `npm run app:test:settings`: negocio, logo privado, cuenta, contraseña y nuevo login completos desde la interfaz.
 - `npm run app:test:session-business`: redirección anónima, onboarding sin membresías, persistencia del negocio y rechazo RLS de un tenant ajeno.
-- `npm run db:test`: 626 pruebas SQL, incluidas 73 de `metrics_detail` y 36 de `metrics_summary`, 13 de vigencia efectiva, 51 de creación/listados y 46 de conversión de cotizaciones; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, 40 cotizaciones concurrentes sin efectos contables, 20 conversiones simultáneas idempotentes, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
+- `npm run db:test`: 626 pruebas SQL más las 45 comprobaciones de `document-pdf`, incluidas 73 de `metrics_detail` y 36 de `metrics_summary`, 13 de vigencia efectiva, 51 de creación/listados y 46 de conversión de cotizaciones; 100 códigos concurrentes únicos, 40 ventas concurrentes más 10 anulaciones simultáneas de la misma venta, 40 cotizaciones concurrentes sin efectos contables, 20 conversiones simultáneas idempotentes, carrera de dos abonos, 10 recepciones concurrentes de una orden y las 21 comprobaciones de la Edge Function.
 - `npx supabase db lint`: sin errores; conserva dos avisos porque las columnas `from` y `to` de `period_range` son palabras reservadas, pero esos nombres forman parte del contrato del `PLAN.md` y están correctamente entrecomillados.
 - Comprobación real sobre PostgREST con el usuario `demo@cashi.local`: cada filtro de `v_product_stats` devuelve lo esperado, `other@cashi.local` no ve nada del negocio demo y el acceso anónimo responde `401 permission denied for view v_product_stats`.
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: S8.1
+## Próximo trabajo: F8.1
 
-Edge Function `document-pdf`: una sola plantilla para factura y cotización, con
-el encabezado del negocio y su logo, cliente, líneas, total y nota. Valida
-sesión y membresía como `import-products`, que es el precedente de Edge Function
-del proyecto. El PDF debe abrir en móvil y escritorio, pesar menos de 300 kB y
-respetar la tipografía embebida.
+Visor de documento: un overlay con el documento, **Descargar PDF** —que llama a
+`document-pdf`— y **Descargar imagen** en el cliente; en cotizaciones, además,
+Convertir en venta y Convertir en fiado. Se cierra al cambiar de sección.
 
 Puntos a resolver:
 
-- Elegir la librería de PDF para Deno y comprobar su licencia antes de usarla,
-  igual que se hizo con PrimeVue. Las tipografías del proyecto —Space Grotesk,
-  IBM Plex Sans e IBM Plex Mono— están en `app/node_modules/@fontsource`, pero
-  la función no puede depender del `node_modules` del frontend.
-- El logo vive en Storage privado; hay que leerlo con la sesión del usuario, no
-  con la `service_role`.
-- Las líneas de una venta salen de `sale_line` con sus valores congelados, y las
-  de una cotización de `quote_line`. Conviene una sola consulta por tipo y una
-  única plantilla, como pide el plan.
-- F8.1 consumirá esta función desde el visor; hasta entonces Cotizaciones,
-  Resumen y Reportes avisan con un toast de que el visor llega en esa etapa.
+- Hoy tres vistas avisan con un toast de que el visor llega en F8.1:
+  `/cotizaciones` (Ver/PDF), `/` (últimas ventas) y `/reportes` (historial).
+  Las tres deben abrir el visor y ese aviso desaparece.
+- El visor necesita pintar el documento en HTML para poder exportarlo como
+  imagen con canvas; el PDF ya lo compone el servidor. Conviene que la vista
+  HTML y la plantilla del PDF cuenten lo mismo, aunque no compartan código.
+- La conversión desde el visor ya existe: `convert_quote` (S6.2), la misma que
+  usa `/cotizaciones`.
+- Anular una venta desde el visor no está en el alcance de F8.1, pero es el
+  único consumidor pendiente de `void_sale`; conviene decidirlo con el usuario
+  al cerrar la Fase 8.
 
 ## Fuentes de diseño disponibles
 
