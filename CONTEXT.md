@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar S8.1. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
+Actualizado: 27 de agosto de 2026, después de completar F8.1. **La Fase 8 está terminada.** **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
 
 ## Preferencias del usuario
 
@@ -61,8 +61,9 @@ Completado y versionado:
 | F7.3 | `217e7e1` | Vista Reportes: cifras, ganancia por categoría, mejor/peor, historial y CSV |
 | — | `ca0af42` | Puerto propio para las tres pruebas que chocaban con el servidor de desarrollo |
 | S8.1 | `a0c0443` | Edge Function `document-pdf`: plantilla única de factura y cotización |
+| F8.1 | `6d5c87d` | Visor de documentos con descarga de PDF e imagen y conversión de cotizaciones |
 
-La siguiente tarea pendiente del `PLAN.md` es **F8.1 · Visor de documento**.
+La siguiente tarea pendiente del `PLAN.md` es **X9.1 · Estados vacíos y errores**, que abre la Fase 9 de cierre.
 
 ## Qué está construido y qué no
 
@@ -84,10 +85,9 @@ componente se quedó sin ningún consumidor y se eliminó; el `data-testid`
 `active-business-name` que usaban tres pruebas vive ahora en el encabezado del
 Resumen.
 
-Backend disponible y **sin interfaz que lo use**: `void_sale` (S3.2) y la Edge
-Function `document-pdf` (S8.1). Cotizaciones, Resumen y Reportes ya abren cada
-documento, pero todavía muestran el aviso de que el visor llega en F8.1: esa es
-justo la tarea que los conecta. La acción Ver/PDF de Cotizaciones informa que el visor llegará en F8.1;
+Backend disponible y **sin interfaz que lo use**: solo `void_sale` (S3.2). El
+visor muestra la venta pero no la anula; el plan no lo pide en ninguna tarea, así
+que conviene decidirlo con el usuario antes de darlo por terminado. La acción Ver/PDF de Cotizaciones informa que el visor llegará en F8.1;
 no simula una descarga antes de que exista `document-pdf`.
 
 ## Convenciones de trabajo
@@ -124,6 +124,22 @@ no simula una descarga antes de que exista `document-pdf`.
 - `npm run db:test:documents` cubre las 25 reglas del modelo (totales, notas,
   sellos de ANULADA/VENCIDA/CONVERTIDA, paginación) y 20 del contrato HTTP
   (sesión, método, tipo, aislamiento, tamaño, nombre de archivo y logo).
+- `DocumentsDocumentViewer` es el visor: se abre desde Cotizaciones (Ver/PDF),
+  Resumen (últimas ventas) y Reportes (historial). Cierra con Escape, con clic
+  fuera, con Cerrar y **al cambiar de sección**, como pide el plan.
+- El papel del visor está maquetado con **estilos en línea a propósito**: la
+  exportación a PNG serializa ese nodo dentro de un SVG `foreignObject` y ahí no
+  llega ninguna hoja de estilos externa. Tampoco llegan las tipografías web ni
+  las imágenes remotas, por eso el logo se incrusta como `data:`. Si el
+  navegador rechaza el SVG, el visor avisa y sugiere el PDF en vez de romperse.
+- **El visor y la plantilla del PDF cuentan lo mismo pero no comparten código**:
+  Deno no puede importar de `app/app` ni Nuxt de `supabase/functions`. Las notas
+  y los sellos están duplicados en `app/app/utils/documents.ts` y en
+  `supabase/functions/_shared/document.ts`; si cambia una regla, hay que
+  cambiarla en los dos sitios. Las dos pruebas lo verifican por separado.
+- Desde una cotización vigente el visor convierte a venta o a fiado con
+  `convert_quote`, la misma RPC de `/cotizaciones`. Sin cliente, «Convertir en
+  fiado» queda desactivado; vencida o convertida, no aparece ninguno de los dos.
 
 ## Stack instalado
 
@@ -157,6 +173,7 @@ npm run app:test:business-switcher
 npm run app:test:caja
 npm run app:test:credits
 npm run app:test:dashboard
+npm run app:test:documents
 npm run app:test:expenses
 npm run app:test:inventory
 npm run app:test:inventory-import
@@ -358,12 +375,13 @@ npm run db:types
 
 ## Última validación
 
-Validaciones vigentes al completar S8.1:
+Validaciones vigentes al completar F8.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:reports`: cuatro cifras del mes, ganancia por categoría ordenada, mejor y peor producto, historial del periodo, aviso documental, CSV descargado y verificado línea por línea, cambio a Hoy y versión móvil accesible.
+- `npm run app:test:documents`: abre el documento de una venta desde el Resumen, comprueba encabezado, líneas, total y nota, descarga el PDF real de la Edge Function y la imagen PNG generada en el cliente, cierra con Escape, comprueba que cambiar de sección lo cierra, abre una cotización vencida con su sello y sin conversiones, y convierte una vigente a venta comprobando el resultado en PostgreSQL. En móvil verifica que no desborda y que sus botones llegan a 44 px. No deja fixtures.
 - `npm run app:test:dashboard`: KPIs de la venta del día, margen del 40 %, gráfica de 14 días, rentabilidad ordenada, última venta con su aviso documental, tres alertas en orden, navegación filtrada a Inventario y el selector de periodo con sus 18 meses; en móvil, dos columnas de KPI, segmentado de ancho completo, sin desbordes y sin controles bajo 44 px.
 - `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. En móvil comprueba que la barra de cobro queda anclada abajo, que el botón de escritorio no está visible y que ningún control baja de 44 px. Borra las ventas y restaura el stock del seed.
 - `npm run app:test:credits`: resumen de $790.000, tres deudores, un vencido, abono completo de $280.000, desaparición del cliente, cartera final de $510.000, actualización del total mensual y versión móvil sin controles menores de 44 px. No deja fixtures.
@@ -383,25 +401,29 @@ Validaciones vigentes al completar S8.1:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: F8.1
+## Próximo trabajo: Fase 9 · Cierre
 
-Visor de documento: un overlay con el documento, **Descargar PDF** —que llama a
-`document-pdf`— y **Descargar imagen** en el cliente; en cotizaciones, además,
-Convertir en venta y Convertir en fiado. Se cierra al cambiar de sección.
+Las ocho fases de producto están terminadas. Queda la Fase 9, que son cuatro
+tareas de cierre y ninguna añade pantallas nuevas:
 
-Puntos a resolver:
+- **X9.1 · Estados vacíos y errores.** Buena parte ya existe —cada lista tiene su
+  mensaje de vacío y los errores de RPC salen por Toast—, así que lo pendiente es
+  revisarlo vista por vista y añadir la **pantalla de sesión expirada**, que hoy
+  no existe.
+- **X9.2 · Pruebas E2E.** El proyecto ya tiene 15 flujos; el plan pide además un
+  recorrido completo encadenado (registro → negocio → venta → cotización a fiado
+  → abono total → recibir compra → navegar a un mes anterior) y un test de
+  aislamiento entre dos negocios del mismo usuario.
+- **X9.3 · Despliegue.** Es la primera tarea que sale del entorno local: proyecto
+  Supabase de producción, migraciones por CI, Nuxt en Vercel y backups. **Exige
+  decisiones y credenciales del usuario**; no empezarla sin hablarlo.
+- **X9.4 · Observabilidad.** Logs de Edge Functions, Sentry o similar en el
+  frontend y una consulta guardada de errores de RPC. Añadir Sentry es una
+  dependencia nueva: preguntar antes.
 
-- Hoy tres vistas avisan con un toast de que el visor llega en F8.1:
-  `/cotizaciones` (Ver/PDF), `/` (últimas ventas) y `/reportes` (historial).
-  Las tres deben abrir el visor y ese aviso desaparece.
-- El visor necesita pintar el documento en HTML para poder exportarlo como
-  imagen con canvas; el PDF ya lo compone el servidor. Conviene que la vista
-  HTML y la plantilla del PDF cuenten lo mismo, aunque no compartan código.
-- La conversión desde el visor ya existe: `convert_quote` (S6.2), la misma que
-  usa `/cotizaciones`.
-- Anular una venta desde el visor no está en el alcance de F8.1, pero es el
-  único consumidor pendiente de `void_sale`; conviene decidirlo con el usuario
-  al cerrar la Fase 8.
+Pendiente transversal: `void_sale` sigue sin interfaz. Anular una venta no está
+en ninguna tarea del plan; decidir con el usuario si entra en X9.1 o se queda
+fuera.
 
 ## Fuentes de diseño disponibles
 
