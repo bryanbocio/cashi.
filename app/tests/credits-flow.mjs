@@ -85,10 +85,10 @@ try {
 
   await page.goto(`${baseUrl}/fiados`, { waitUntil: 'networkidle' })
   await waitForText(page.locator('[data-testid="credit-count"]'), '3 clientes con deuda', 'Conteo inicial de deudores')
-  await waitForText(page.locator('[data-testid="credit-total-debt"]'), '790.000', 'Cartera inicial')
+  await waitForText(page.locator('[data-testid="credit-total-debt"]'), '790,000.00', 'Cartera inicial')
   await waitForText(page.locator('[data-testid="credit-debtor-count"]'), '3', 'Clientes iniciales')
-  await waitForText(page.locator('[data-testid="credit-paid-month"]'), '100.000', 'Abonos iniciales del mes')
-  await waitForText(page.locator(`[data-testid="credit-debt-${anaId}"]`), '350.000', 'Deuda vencida de Ana')
+  await waitForText(page.locator('[data-testid="credit-paid-month"]'), '100,000.00', 'Abonos iniciales del mes')
+  await waitForText(page.locator(`[data-testid="credit-debt-${anaId}"]`), '350,000.00', 'Deuda vencida de Ana')
   await waitForText(page.locator('body'), 'DÍAS VENCIDOS', 'Estado vencido visible')
 
   await page.locator(`[data-testid="credit-pay-${carlosId}"]`).click()
@@ -103,9 +103,9 @@ try {
   await page.getByText('Carlos Gómez quedó al día.').waitFor()
 
   await waitForText(page.locator('[data-testid="credit-count"]'), '2 clientes con deuda', 'Conteo después de pagar todo')
-  await waitForText(page.locator('[data-testid="credit-total-debt"]'), '510.000', 'Cartera después de pagar todo')
+  await waitForText(page.locator('[data-testid="credit-total-debt"]'), '510,000.00', 'Cartera después de pagar todo')
   await waitForText(page.locator('[data-testid="credit-debtor-count"]'), '2', 'Deudores después de pagar todo')
-  await waitForText(page.locator('[data-testid="credit-paid-month"]'), '380.000', 'Abonos del mes después de pagar todo')
+  await waitForText(page.locator('[data-testid="credit-paid-month"]'), '380,000.00', 'Abonos del mes después de pagar todo')
   if (await page.locator(`[data-testid="credit-pay-${carlosId}"]`).count()) {
     throw new Error('Carlos continúa en la lista después de saldar la deuda.')
   }
@@ -123,7 +123,7 @@ try {
   const anaCard = page.locator(`[data-testid="credit-card-${anaId}"]`)
   await anaCard.waitFor({ state: 'visible' })
   await waitForText(anaCard, 'Ana Pérez', 'Tarjeta móvil de Ana')
-  await waitForText(anaCard, '350.000', 'Deuda móvil de Ana')
+  await waitForText(anaCard, '350,000.00', 'Deuda móvil de Ana')
   await waitForText(anaCard, 'VENCIDOS', 'Vencimiento móvil de Ana')
 
   const smallTargets = await page.evaluate(() => [...document.querySelectorAll('button, input, [role="combobox"]')]

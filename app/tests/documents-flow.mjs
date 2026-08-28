@@ -135,7 +135,7 @@ try {
   const viewer = page.locator('[data-testid="document-viewer"]')
   await viewer.waitFor({ state: 'visible' })
   await waitForText(page.locator('[data-testid="document-code"]'), 'FAC-00001', 'Código en el visor')
-  await waitForText(page.locator('[data-testid="document-total"]'), '158.000', 'Total en el visor')
+  await waitForText(page.locator('[data-testid="document-total"]'), '158,000.00', 'Total en el visor')
   await waitForText(page.locator('[data-testid="document-paper"]'), 'Perfume Aurora 50 ml', 'Línea del documento')
   await waitForText(page.locator('[data-testid="document-paper"]'), 'Cashi Demo', 'Encabezado del negocio')
   await waitForText(page.locator('[data-testid="document-note"]'), 'Gracias por su compra', 'Nota de la venta de contado')
@@ -202,7 +202,7 @@ try {
   await waitForText(page.locator('[data-testid="document-code"]'), 'COT-0001', 'Código de la cotización')
   // La etiqueta se dibuja en mayúsculas por CSS y así la lee `innerText`.
   await waitForText(page.locator('[data-testid="document-paper"]'), 'VÁLIDA HASTA', 'Vigencia en el documento')
-  await waitForText(page.locator('[data-testid="document-total"]'), '32.000', 'Total de la cotización')
+  await waitForText(page.locator('[data-testid="document-total"]'), '32,000.00', 'Total de la cotización')
   const creditDisabled = await page.locator('[data-testid="document-to-credit"]').isDisabled()
   if (!creditDisabled) throw new Error('Sin cliente, «Convertir en fiado» debe estar desactivado.')
 

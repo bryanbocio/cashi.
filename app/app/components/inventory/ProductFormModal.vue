@@ -160,24 +160,24 @@ async function submit() {
 
       <div>
         <label for="product-cost" class="mb-1.5 block text-[11px] font-semibold text-ink">Costo</label>
-        <PrimeInputNumber v-model="form.cost" input-id="product-cost" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.cost)" :disabled="saving" fluid />
+        <PrimeInputNumber :locale="MONEY_LOCALE" v-model="form.cost" input-id="product-cost" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.cost)" :disabled="saving" fluid />
         <p v-if="errors.cost" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.cost }}</p>
       </div>
       <div>
         <label for="product-price" class="mb-1.5 block text-[11px] font-semibold text-ink">Precio de venta</label>
-        <PrimeInputNumber v-model="form.price" input-id="product-price" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.price)" :disabled="saving" fluid />
+        <PrimeInputNumber :locale="MONEY_LOCALE" v-model="form.price" input-id="product-price" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.price)" :disabled="saving" fluid />
         <p v-if="errors.price" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.price }}</p>
       </div>
 
       <div>
         <label for="product-stock" class="mb-1.5 block text-[11px] font-semibold text-ink">Existencias iniciales</label>
-        <PrimeInputNumber v-model="form.stock" input-id="product-stock" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.stock)" :disabled="saving" fluid />
+        <PrimeInputNumber :locale="MONEY_LOCALE" v-model="form.stock" input-id="product-stock" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.stock)" :disabled="saving" fluid />
         <p v-if="errors.stock" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.stock }}</p>
         <p v-else class="mt-1.5 text-[11px] text-muted">Después solo cambian con un ajuste registrado.</p>
       </div>
       <div>
         <label for="product-min-stock" class="mb-1.5 block text-[11px] font-semibold text-ink">Stock mínimo</label>
-        <PrimeInputNumber v-model="form.minStock" input-id="product-min-stock" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.minStock)" :disabled="saving" fluid />
+        <PrimeInputNumber :locale="MONEY_LOCALE" v-model="form.minStock" input-id="product-min-stock" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.minStock)" :disabled="saving" fluid />
         <p v-if="errors.minStock" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.minStock }}</p>
       </div>
     </form>

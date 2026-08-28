@@ -62,13 +62,17 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   CREDIT: 'Fiado',
 }
 
-/** Los montos son enteros en la moneda del negocio; nunca se dividen entre 100. */
+/**
+ * Los montos son enteros en la moneda del negocio; nunca se dividen entre 100.
+ * Los dos decimales son de presentación y el formato es el mismo que usa la
+ * aplicación (`1,000.00`), para que el papel y la pantalla no se contradigan.
+ */
 export function formatDocumentMoney(amount: number, currency: string) {
-  return new Intl.NumberFormat('es-CO', {
+  return new Intl.NumberFormat('es-DO', {
     style: 'currency',
     currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount).replace(/\s/g, ' ')
 }
 

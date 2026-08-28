@@ -114,7 +114,7 @@ try {
   // ventas del usuario y la prueba debe seguir valiendo igual.
   const expectedTotal = Number(psql(`select coalesce(sum(cost * stock), 0)
     from public.product where business_id = '${demoBusinessId}' and active;`))
-  const money = amount => new Intl.NumberFormat('es-CO').format(amount)
+  const money = amount => new Intl.NumberFormat('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 
   // El seed trae 9 productos y el fixture suma uno más.
   await waitForText(count, '10 productos', 'Conteo inicial del inventario')
@@ -144,7 +144,7 @@ try {
   // Panel lateral: margen y valor en vivo antes de guardar.
   await page.locator(`[data-testid="row-${sku}"]`).click()
   await page.locator('[data-testid="product-panel"]').waitFor()
-  await waitForText(page.locator('[data-testid="panel-margin"]'), '16,7 %', 'Margen inicial del panel')
+  await waitForText(page.locator('[data-testid="panel-margin"]'), '16.7 %', 'Margen inicial del panel')
 
   await page.locator('#panel-price').fill('20000')
   await page.locator('#panel-price').blur()

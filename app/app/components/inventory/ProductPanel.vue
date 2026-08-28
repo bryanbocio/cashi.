@@ -165,19 +165,19 @@ async function submitAdjustment() {
 
         <div>
           <label for="panel-cost" class="mb-1.5 block text-[11px] font-semibold text-ink">Costo</label>
-          <PrimeInputNumber v-model="form.cost" input-id="panel-cost" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.cost)" :disabled="saving" fluid />
+          <PrimeInputNumber :locale="MONEY_LOCALE" v-model="form.cost" input-id="panel-cost" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.cost)" :disabled="saving" fluid />
           <p v-if="errors.cost" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.cost }}</p>
         </div>
 
         <div>
           <label for="panel-price" class="mb-1.5 block text-[11px] font-semibold text-ink">Precio de venta</label>
-          <PrimeInputNumber v-model="form.price" input-id="panel-price" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.price)" :disabled="saving" fluid />
+          <PrimeInputNumber :locale="MONEY_LOCALE" v-model="form.price" input-id="panel-price" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.price)" :disabled="saving" fluid />
           <p v-if="errors.price" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.price }}</p>
         </div>
 
         <div>
           <label for="panel-min-stock" class="mb-1.5 block text-[11px] font-semibold text-ink">Stock mínimo</label>
-          <PrimeInputNumber v-model="form.minStock" input-id="panel-min-stock" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.minStock)" :disabled="saving" fluid />
+          <PrimeInputNumber :locale="MONEY_LOCALE" v-model="form.minStock" input-id="panel-min-stock" :min="0" :max-fraction-digits="0" :invalid="Boolean(errors.minStock)" :disabled="saving" fluid />
           <p v-if="errors.minStock" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.minStock }}</p>
         </div>
 
@@ -195,7 +195,7 @@ async function submitAdjustment() {
 
         <div>
           <label for="panel-delta" class="mb-1.5 block text-[11px] font-semibold text-ink">Unidades a sumar o restar</label>
-          <PrimeInputNumber v-model="adjust.delta" input-id="panel-delta" :max-fraction-digits="0" :invalid="Boolean(errors.delta)" :disabled="adjusting" placeholder="Por ejemplo 10 o -3" fluid />
+          <PrimeInputNumber :locale="MONEY_LOCALE" v-model="adjust.delta" input-id="panel-delta" :max-fraction-digits="0" :invalid="Boolean(errors.delta)" :disabled="adjusting" placeholder="Por ejemplo 10 o -3" fluid />
           <p v-if="errors.delta" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.delta }}</p>
           <p v-else-if="adjust.delta" class="mt-1.5 text-[11px] text-muted">
             Quedará en <strong class="font-mono">{{ formatNumber(resultingStock) }}</strong> unidades.

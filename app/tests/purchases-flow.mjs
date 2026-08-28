@@ -93,7 +93,7 @@ try {
   await page.goto(`${baseUrl}/compras`, { waitUntil: 'networkidle' })
   await waitForText(page.locator('[data-testid="purchase-suggestion-title"]'), '2 productos', 'Sugerencia inicial')
   await waitForText(page.locator('[data-testid="purchase-suggestion-detail"]'), '13 unidades', 'Unidades sugeridas')
-  await waitForText(page.locator('[data-testid="purchase-suggestion-detail"]'), '108.500', 'Costo sugerido')
+  await waitForText(page.locator('[data-testid="purchase-suggestion-detail"]'), '108,500.00', 'Costo sugerido')
   await waitForText(page.locator('[data-testid="purchase-order-count"]'), '0 órdenes', 'Lista inicialmente vacía')
 
   await page.locator('[data-testid="purchase-create-suggested"]').click()
@@ -101,7 +101,7 @@ try {
   await waitForText(page.locator('[data-testid="purchase-order-count"]'), '1 orden', 'Conteo después de crear')
   await waitForText(page.locator('[data-testid="purchase-pending-count"]'), '1 orden pendiente', 'Pendientes después de crear')
   await waitForText(page.locator('body'), 'Varios proveedores', 'Proveedor de la orden mixta')
-  await waitForText(page.locator('body'), '108.500', 'Costo de la orden creada')
+  await waitForText(page.locator('body'), '108,500.00', 'Costo de la orden creada')
 
   const created = psql(`
     select po.id, po.code, po.status, po.supplier_id is null,
@@ -148,7 +148,7 @@ try {
   await waitForText(card, 'OC-0001', 'Código en tarjeta móvil')
   await waitForText(card, 'Varios proveedores', 'Proveedor en tarjeta móvil')
   await waitForText(card, 'RECIBIDA', 'Estado en tarjeta móvil')
-  await waitForText(card, '108.500', 'Costo en tarjeta móvil')
+  await waitForText(card, '108,500.00', 'Costo en tarjeta móvil')
 
   const smallTargets = await page.evaluate(() => [...document.querySelectorAll('button, input, [role="combobox"]')]
     .map(el => ({

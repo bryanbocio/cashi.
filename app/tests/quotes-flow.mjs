@@ -145,7 +145,7 @@ try {
     throw new Error('Guardar la cotización alteró el stock.')
   }
 
-  await waitForText(page.locator('[data-testid="quote-open-total"]'), '79.000', 'Total vigente')
+  await waitForText(page.locator('[data-testid="quote-open-total"]'), '79,000.00', 'Total vigente')
   await waitForText(page.locator('body'), 'Perfume Aurora', 'Detalle de la cotización')
   await page.locator(`[data-testid="quote-credit-${firstQuoteId}"]`).click()
   await page.getByText('Cotización pasada a fiado').waitFor()

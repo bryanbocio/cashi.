@@ -180,7 +180,7 @@ check(expired.stamp === 'VENCIDA', 'la cotización vencida lleva sello')
 const converted = buildDocumentModel(business, { ...baseQuote, code: 'COT-0005', status: 'CONVERTED' })
 check(converted.stamp === 'CONVERTIDA', 'la cotización convertida lleva sello')
 
-check(formatDocumentMoney(158000, 'COP').includes('158.000'), 'el dinero se imprime sin decimales', formatDocumentMoney(158000, 'COP'))
+check(formatDocumentMoney(158000, 'COP').includes('158,000.00'), 'el dinero usa coma para los miles y punto para los decimales', formatDocumentMoney(158000, 'COP'))
 check(!/\u00a0/.test(formatDocumentMoney(158000, 'COP')), 'el importe no lleva espacios duros que la fuente no dibuje')
 
 const pages = paginateLines(Array.from({ length: 50 }, (_, index) => index), 18, 30)

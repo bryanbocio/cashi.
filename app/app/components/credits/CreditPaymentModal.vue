@@ -100,7 +100,7 @@ async function submit() {
             Abonar todo · {{ formatMoney(credit?.debt) }}
           </button>
         </div>
-        <PrimeInputNumber v-model="form.amount" input-id="credit-payment-amount" :min="1" :max-fraction-digits="0" :invalid="Boolean(errors.amount)" :disabled="saving" fluid />
+        <PrimeInputNumber :locale="MONEY_LOCALE" v-model="form.amount" input-id="credit-payment-amount" :min="1" :max-fraction-digits="0" :invalid="Boolean(errors.amount)" :disabled="saving" fluid />
         <p v-if="errors.amount" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.amount }}</p>
       </div>
 

@@ -88,7 +88,11 @@ async function waitForServer() {
 
 /** Compara solo los dígitos: el formato de moneda usa espacio duro y símbolo. */
 async function waitForMoney(locator, amount, description) {
-  const expected = String(Math.abs(amount))
+  // Se compara contra el mismo formato de la aplicación y solo por dígitos:
+  // así da igual el símbolo de la moneda y `0` no choca con `0.00`.
+  const expected = new Intl.NumberFormat('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    .format(Math.abs(amount))
+    .replace(/\D/g, '')
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const text = await locator.innerText().catch(() => null)
     if (text !== null && text.replace(/\D/g, '') === expected) return
@@ -160,9 +164,9 @@ try {
   await waitForText(page.locator('[data-testid="report-figures"]'), 'de los ingresos', 'Porcentaje sobre ingresos')
 
   // Ganancia por categoría: las tres del fixture, la más rentable primero.
-  await waitForText(page.locator('[data-testid="report-category-Perfumería"]'), '62.000 · 39,2 %', 'Ganancia y margen de Perfumería')
-  await waitForText(page.locator('[data-testid="report-category-Cuidado personal"]'), '14.000 · 43,8 %', 'Ganancia y margen de Cuidado personal')
-  await waitForText(page.locator('[data-testid="report-category-Accesorios"]'), '10.000 · 40 %', 'Ganancia y margen de Accesorios')
+  await waitForText(page.locator('[data-testid="report-category-Perfumería"]'), '62,000.00 · 39.2 %', 'Ganancia y margen de Perfumería')
+  await waitForText(page.locator('[data-testid="report-category-Cuidado personal"]'), '14,000.00 · 43.8 %', 'Ganancia y margen de Cuidado personal')
+  await waitForText(page.locator('[data-testid="report-category-Accesorios"]'), '10,000.00 · 40 %', 'Ganancia y margen de Accesorios')
   const categoryOrder = await page.locator('[data-testid="report-categories"] li')
     .evaluateAll(items => items.map(item => item.dataset.testid))
   if (categoryOrder[0] !== 'report-category-Perfumería') {
@@ -171,15 +175,15 @@ try {
 
   // Mejor y peor del periodo, por ganancia.
   await waitForText(page.locator('[data-testid="report-best"]'), 'Perfume Aurora 50 ml', 'Producto más rentable')
-  await waitForText(page.locator('[data-testid="report-best"]'), '62.000', 'Ganancia del más rentable')
+  await waitForText(page.locator('[data-testid="report-best"]'), '62,000.00', 'Ganancia del más rentable')
   await waitForText(page.locator('[data-testid="report-worst"]'), 'Cosmetiquera', 'Producto menos rentable')
-  await waitForText(page.locator('[data-testid="report-worst"]'), '10.000', 'Ganancia del menos rentable')
+  await waitForText(page.locator('[data-testid="report-worst"]'), '10,000.00', 'Ganancia del menos rentable')
 
   // Historial del periodo, con las ventas del fixture.
   await waitForText(page.locator('[data-testid="report-history-count"]'), `${monthSales} ventas`, 'Conteo del historial')
-  await waitForText(page.locator('[data-testid="report-sale-FAC-00001"]'), '190.000', 'Total de la primera venta')
-  await waitForText(page.locator('[data-testid="report-sale-FAC-00001"]'), '76.000', 'Ganancia de la primera venta')
-  await waitForText(page.locator('[data-testid="report-sale-FAC-00002"]'), '25.000', 'Total de la venta con descuento')
+  await waitForText(page.locator('[data-testid="report-sale-FAC-00001"]'), '190,000.00', 'Total de la primera venta')
+  await waitForText(page.locator('[data-testid="report-sale-FAC-00001"]'), '76,000.00', 'Ganancia de la primera venta')
+  await waitForText(page.locator('[data-testid="report-sale-FAC-00002"]'), '25,000.00', 'Total de la venta con descuento')
   await waitForText(page.locator('[data-testid="report-sale-FAC-00002"]'), 'Transferencia', 'Método de la segunda venta')
 
   // El historial también abre el visor de documentos.

@@ -88,7 +88,11 @@ async function getActionLink(messageId) {
 
 /** Compara solo los dígitos: el formato de moneda usa espacio duro. */
 async function waitForMoney(locator, amount, description) {
-  const expected = String(amount)
+  // Se compara contra el mismo formato de la aplicación y solo por dígitos:
+  // así da igual el símbolo de la moneda y `0` no choca con `0.00`.
+  const expected = new Intl.NumberFormat('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    .format(Math.abs(amount))
+    .replace(/\D/g, '')
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const text = await locator.innerText({ timeout: 1000 }).catch(() => null)
     if (text !== null && text.replace(/\D/g, '') === expected) return
@@ -179,7 +183,7 @@ try {
   await page.locator('[data-testid="caja-search"]').fill(sku)
   await page.locator(`[data-testid="result-${sku}"]`).click()
   await page.locator(`[data-testid="cart-plus-${sku}"]`).click()
-  await waitForText(page.locator('[data-testid="cart-total"]'), '20.000', 'Total de la venta de contado')
+  await waitForText(page.locator('[data-testid="cart-total"]'), '20,000.00', 'Total de la venta de contado')
   await page.locator('[data-testid="caja-charge"]').click()
   await page.getByText('Venta FAC-00001 registrada').waitFor()
 
@@ -208,7 +212,7 @@ try {
   // --- 5. Fiados: la deuda aparece y se salda entera ---
   await page.goto(`${baseUrl}/fiados`, { waitUntil: 'networkidle' })
   await waitForText(page.locator('[data-testid="credit-count"]'), '1 cliente con deuda', 'Deudores tras el fiado')
-  await waitForText(page.locator('[data-testid="credit-total-debt"]'), '10.000', 'Deuda del recorrido')
+  await waitForText(page.locator('[data-testid="credit-total-debt"]'), '10,000.00', 'Deuda del recorrido')
 
   const customerId = psql(`select id from public.customer where business_id = '${businessId}';`)
   await page.locator(`[data-testid="credit-pay-${customerId}"]`).click()
@@ -229,7 +233,7 @@ try {
 
   // --- 7. El mes en curso cuadra y el anterior está vacío ---
   await page.goto(`${baseUrl}/reportes`, { waitUntil: 'networkidle' })
-  await waitForText(page.locator('[data-testid="report-revenue"]'), '30.000', 'Ingresos del mes del recorrido')
+  await waitForText(page.locator('[data-testid="report-revenue"]'), '30,000.00', 'Ingresos del mes del recorrido')
   await waitForText(page.locator('[data-testid="report-history-count"]'), '2 ventas', 'Historial del mes')
 
   await page.locator('[data-testid="month-prev"]').click()

@@ -84,7 +84,7 @@ const isCredit = computed(() => cart.paymentMethod === 'CREDIT')
 
     <div>
       <label for="caja-discount" class="mb-1.5 block text-[11px] font-semibold text-ink">Descuento</label>
-      <PrimeInputNumber v-model="cart.discount" input-id="caja-discount" :min="0" :max-fraction-digits="0" :disabled="charging || quoting" fluid />
+      <PrimeInputNumber :locale="MONEY_LOCALE" v-model="cart.discount" input-id="caja-discount" :min="0" :max-fraction-digits="0" :disabled="charging || quoting" fluid />
     </div>
 
     <dl class="m-0 grid gap-1.5 border-t border-black/10 pt-4 text-[12px]">

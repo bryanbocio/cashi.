@@ -104,25 +104,25 @@ try {
   await page.locator('[data-testid="caja-search"]').fill('aurora')
   await page.locator('[data-testid="result-PER-001"]').click()
   await waitForText(page.locator('[data-testid="cart-qty-PER-001"]'), '1', 'Cantidad inicial en el carrito')
-  await waitForText(page.locator('[data-testid="cart-total"]'), '79.000', 'Total con un producto')
-  await waitForText(page.locator('[data-testid="cart-profit"]'), '31.000', 'Ganancia estimada con un producto')
+  await waitForText(page.locator('[data-testid="cart-total"]'), '79,000.00', 'Total con un producto')
+  await waitForText(page.locator('[data-testid="cart-profit"]'), '31,000.00', 'Ganancia estimada con un producto')
 
   // El botón + suma unidades y el margen por línea se recalcula.
   await page.locator('[data-testid="cart-plus-PER-001"]').click()
   await waitForText(page.locator('[data-testid="cart-qty-PER-001"]'), '2', 'Cantidad tras sumar')
-  await waitForText(page.locator('[data-testid="cart-total"]'), '158.000', 'Total con dos unidades')
+  await waitForText(page.locator('[data-testid="cart-total"]'), '158,000.00', 'Total con dos unidades')
 
   // Buscar por SKU y agregar un segundo producto. CUI-001: 32.000 / costo 18.000.
   await page.locator('[data-testid="caja-search"]').fill('CUI-001')
   await page.locator('[data-testid="result-CUI-001"]').click()
   await waitForText(page.locator('[data-testid="cart-count"]'), '2 productos', 'Productos en el carrito')
-  await waitForText(page.locator('[data-testid="cart-subtotal"]'), '190.000', 'Subtotal con dos productos')
+  await waitForText(page.locator('[data-testid="cart-subtotal"]'), '190,000.00', 'Subtotal con dos productos')
 
   // El descuento baja el total y la ganancia por igual.
   await page.locator('#caja-discount').fill('10000')
   await page.locator('#caja-discount').blur()
-  await waitForText(page.locator('[data-testid="cart-total"]'), '180.000', 'Total con descuento')
-  await waitForText(page.locator('[data-testid="cart-profit"]'), '66.000', 'Ganancia con descuento')
+  await waitForText(page.locator('[data-testid="cart-total"]'), '180,000.00', 'Total con descuento')
+  await waitForText(page.locator('[data-testid="cart-profit"]'), '66,000.00', 'Ganancia con descuento')
 
   // Fiado sin cliente: debe mostrarse el error del backend, no un bloqueo mudo.
   await page.locator('[data-testid="method-CREDIT"]').click()
@@ -139,7 +139,11 @@ try {
   await page.getByRole('option', { name: 'Ana Pérez' }).click()
   await page.locator('[data-testid="caja-charge"]').click()
   await page.getByText('Venta FAC-00001 registrada').waitFor()
-  await page.getByText('Cobraste $ 180.000.').waitFor()
+  // El símbolo depende de la moneda del negocio: se comprueban los dígitos.
+  const charged = await page.getByText(/^Cobraste /).innerText()
+  if (charged.replace(/\D/g, '') !== '18000000') {
+    throw new Error(`El aviso de cobro dice «${charged}».`)
+  }
 
   // Cobrar limpia el carrito y baja el stock.
   await page.locator('[data-testid="cart-empty"]').waitFor()
@@ -233,7 +237,8 @@ try {
 
   const mobileSale = psql(`
     select (select count(*) from public.sale_line l where l.sale_id = s.id)
-    from public.sale s where s.code = 'FAC-00003';
+    from public.sale s
+    where s.business_id = '${demoBusinessId}' and s.code = 'FAC-00003';
   `)
   if (mobileSale !== '5') throw new Error(`La venta movil guardo ${mobileSale} lineas y debian ser 5.`)
 

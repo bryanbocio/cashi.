@@ -90,7 +90,11 @@ async function waitForServer() {
 
 /** Compara solo los dígitos: el formato de moneda usa espacio duro y símbolo. */
 async function waitForMoney(locator, amount, description) {
-  const expected = String(amount)
+  // Se compara contra el mismo formato de la aplicación y solo por dígitos:
+  // así da igual el símbolo de la moneda y `0` no choca con `0.00`.
+  const expected = new Intl.NumberFormat('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    .format(Math.abs(amount))
+    .replace(/\D/g, '')
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const text = await locator.innerText().catch(() => null)
     if (text !== null && text.replace(/\D/g, '') === expected) return
@@ -136,7 +140,9 @@ try {
     where e.business_id = '${demoBusinessId}'
       and e.spent_at = (current_timestamp at time zone (select timezone from public.business where id = '${demoBusinessId}'))::date;`))
   const netProfit = 76000 - expensesToday
-  const netProfitLabel = new Intl.NumberFormat('es-CO').format(Math.abs(netProfit))
+  // Mismo formato que la aplicación: coma para miles, punto para decimales.
+  const money = amount => new Intl.NumberFormat('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+  const netProfitLabel = money(Math.abs(netProfit))
 
   // Las etiquetas de mes se calculan aquí para que la prueba no dependa de la
   // fecha real; los importes se leen del propio `metrics_summary`, que ya tiene
@@ -173,19 +179,19 @@ try {
   await waitForText(page.locator('[data-testid="active-business-name"]'), 'Cashi Demo', 'Negocio activo del Resumen')
 
   // KPIs del periodo Hoy.
-  await waitForText(page.locator('[data-testid="kpi-revenue"]'), '190.000', 'Ventas de hoy')
-  await waitForText(page.locator('[data-testid="kpi-gross-profit"]'), '76.000', 'Ganancia bruta de hoy')
+  await waitForText(page.locator('[data-testid="kpi-revenue"]'), '190,000.00', 'Ventas de hoy')
+  await waitForText(page.locator('[data-testid="kpi-gross-profit"]'), '76,000.00', 'Ganancia bruta de hoy')
   await waitForText(page.locator('[data-testid="dashboard-kpis"]'), '40 % de margen', 'Margen bruto de hoy')
-  await waitForText(page.locator('[data-testid="kpi-expenses"]'), new Intl.NumberFormat('es-CO').format(expensesToday), 'Gastos de hoy')
+  await waitForText(page.locator('[data-testid="kpi-expenses"]'), money(expensesToday), 'Gastos de hoy')
   await waitForText(page.locator('[data-testid="kpi-net-profit"]'), netProfitLabel, 'Ganancia neta de hoy')
-  await waitForText(page.locator('[data-testid="kpi-receivable"]'), '790.000', 'Cartera por cobrar')
+  await waitForText(page.locator('[data-testid="kpi-receivable"]'), '790,000.00', 'Cartera por cobrar')
   await waitForText(page.locator('[data-testid="kpi-receivable-link"]'), '3 clientes con deuda', 'Deudores en el KPI de cartera')
 
   // La cartera es una foto global: navega a Fiados y vuelve.
   await page.locator('[data-testid="kpi-receivable-link"]').click()
   await page.waitForURL(url => url.pathname === '/fiados')
   await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' })
-  await waitForText(page.locator('[data-testid="kpi-revenue"]'), '190.000', 'Ventas tras volver de Fiados')
+  await waitForText(page.locator('[data-testid="kpi-revenue"]'), '190,000.00', 'Ventas tras volver de Fiados')
 
   // Gráfica: 14 días y la venta de hoy en la barra correspondiente.
   const chartDays = await page.locator('[data-testid="dashboard-chart"] > div').count()
@@ -193,14 +199,16 @@ try {
   const todayBar = page.locator(`[data-testid="chart-day-${businessToday}"]`)
   // Intl separa el símbolo con un espacio duro; se normaliza para comparar.
   const todayLabel = (await todayBar.getAttribute('title') ?? '').replace(/\s/g, ' ')
-  if (!todayLabel.includes('190.000') || !todayLabel.includes('gana $ 76.000')) {
+  // Se comparan los dígitos: el símbolo depende de la moneda del negocio.
+  const labelDigits = todayLabel.replace(/\D/g, '')
+  if (!labelDigits.includes('19000000') || !labelDigits.includes('7600000') || !todayLabel.includes('gana')) {
     throw new Error(`La barra de hoy describe «${todayLabel}» en vez de la venta de 190.000 con 76.000 de ganancia.`)
   }
 
   // Rentabilidad por producto: mismo periodo que los KPI.
   await waitForText(page.locator('[data-testid="top-products"]'), 'Perfume Aurora 50 ml', 'Producto más rentable')
-  await waitForText(page.locator('[data-testid="top-products"]'), '62.000 · 39,2 %', 'Ganancia y margen del perfume')
-  await waitForText(page.locator('[data-testid="top-products"]'), '14.000 · 43,8 %', 'Ganancia y margen de la crema')
+  await waitForText(page.locator('[data-testid="top-products"]'), '62,000.00 · 39.2 %', 'Ganancia y margen del perfume')
+  await waitForText(page.locator('[data-testid="top-products"]'), '14,000.00 · 43.8 %', 'Ganancia y margen de la crema')
   const productOrder = await page.locator('[data-testid="top-products"] li').allInnerTexts()
   if (productOrder.length !== 2) throw new Error(`La rentabilidad listó ${productOrder.length} productos en vez de 2.`)
   if (!productOrder[0].includes('Perfume Aurora')) throw new Error('La rentabilidad no ordenó por ganancia.')
@@ -208,7 +216,7 @@ try {
   // Últimas ventas y el aviso del visor de documentos.
   await waitForText(page.locator('[data-testid="recent-sales"]'), 'FAC-00001', 'Código de la última venta')
   await waitForText(page.locator('[data-testid="recent-sale-FAC-00001"]'), '3 artículos', 'Artículos de la última venta')
-  await waitForText(page.locator('[data-testid="recent-sale-FAC-00001"]'), '190.000', 'Total de la última venta')
+  await waitForText(page.locator('[data-testid="recent-sale-FAC-00001"]'), '190,000.00', 'Total de la última venta')
   // Tocar una venta abre el visor de documentos; su detalle lo prueba
   // `documents-flow`.
   await page.locator('[data-testid="recent-sale-FAC-00001"]').click()
@@ -221,7 +229,7 @@ try {
   await waitForText(page.locator('[data-testid="alert-LOW_STOCK"]'), '2 productos bajo el mínimo', 'Alerta de stock bajo')
   await waitForText(page.locator('[data-testid="alert-LOW_STOCK"]'), 'Espejo compacto (2 de 4)', 'Detalle de stock bajo')
   await waitForText(page.locator('[data-testid="alert-OVERDUE_CREDIT"]'), '1 cliente con fiado vencido', 'Alerta de fiado vencido')
-  await waitForText(page.locator('[data-testid="alert-OVERDUE_CREDIT"]'), '350.000 en total', 'Monto vencido')
+  await waitForText(page.locator('[data-testid="alert-OVERDUE_CREDIT"]'), '350,000.00 en total', 'Monto vencido')
   await waitForText(page.locator('[data-testid="alert-THIN_MARGIN"]'), '1 producto con margen estrecho', 'Alerta de margen estrecho')
   if (await page.locator('[data-testid="alert-PENDING_PURCHASE"]').count()) {
     throw new Error('El seed no tiene órdenes pendientes, pero apareció la alerta de compras.')
@@ -301,7 +309,7 @@ try {
   // Móvil: los paneles se apilan y ningún control queda por debajo de 44 px.
   await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' })
   await page.setViewportSize({ width: 390, height: 844 })
-  await waitForText(page.locator('[data-testid="kpi-revenue"]'), '190.000', 'Ventas visibles en móvil')
+  await waitForText(page.locator('[data-testid="kpi-revenue"]'), '190,000.00', 'Ventas visibles en móvil')
   const kpiColumns = await page.locator('[data-testid="dashboard-kpis"]')
     .evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)
   if (kpiColumns !== 2) throw new Error(`Los KPI se dibujaron en ${kpiColumns} columnas en móvil en vez de 2.`)

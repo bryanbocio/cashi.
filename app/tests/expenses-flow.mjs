@@ -81,8 +81,8 @@ try {
 
   await page.goto(`${baseUrl}/gastos`, { waitUntil: 'networkidle' })
   await waitForText(page.locator('[data-testid="expense-count"]'), '5 gastos', 'Conteo inicial del seed')
-  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1.878.000', 'Total mensual inicial')
-  await waitForText(page.locator('[data-testid="expense-category-Servicios"]'), '486.000', 'Agregado de Servicios')
+  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1,878,000.00', 'Total mensual inicial')
+  await waitForText(page.locator('[data-testid="expense-category-Servicios"]'), '486,000.00', 'Agregado de Servicios')
 
   // El filtro de categoría combina las dos filas de Servicios.
   await page.locator('#expense-filter-category').click()
@@ -103,8 +103,8 @@ try {
   await page.getByText('El gasto ya cuenta para la ganancia neta.').waitFor()
 
   await waitForText(page.locator('[data-testid="expense-count"]'), '6 gastos', 'Conteo después del alta')
-  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1.923.000', 'Total después del alta')
-  await waitForText(page.locator('[data-testid="expense-category-Otro"]'), '45.000', 'Distribución después del alta')
+  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1,923,000.00', 'Total después del alta')
+  await waitForText(page.locator('[data-testid="expense-category-Otro"]'), '45,000.00', 'Distribución después del alta')
 
   const stored = psql(`
     select e.id, e.category, e.amount, e.recurring,
@@ -125,7 +125,7 @@ try {
   await page.locator('#expense-amount').fill('52000')
   await page.locator('[data-testid="expense-create-submit"]').click()
   await page.getByText('Los cambios ya aparecen en el resumen.').waitFor()
-  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1.930.000', 'Total después de editar')
+  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1,930,000.00', 'Total después de editar')
   await page.getByText(editedConcept, { exact: true }).first().waitFor()
 
   const updated = psql(`
@@ -178,7 +178,7 @@ try {
   await page.locator('[data-testid="expense-delete-confirm"]').click()
   await page.getByText('El resumen mensual fue actualizado.').waitFor()
   await waitForText(page.locator('[data-testid="expense-count"]'), '0 gastos', 'Conteo después de eliminar')
-  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1.878.000', 'Total después de eliminar')
+  await waitForText(page.locator('[data-testid="expense-month-total"]'), '1,878,000.00', 'Total después de eliminar')
   if (psql(`select count(*) from public.expense where id = '${expenseId}';`) !== '0') {
     throw new Error('El gasto eliminado todavía existe en PostgreSQL.')
   }
