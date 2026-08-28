@@ -35,6 +35,7 @@
     "app:test:purchases": "npm --prefix app run test:purchases",
     "app:test:quotes": "npm --prefix app run test:quotes",
     "app:test:reports": "npm --prefix app run test:reports",
+    "app:test:session-expired": "npm --prefix app run test:session-expired",
     "app:test:settings": "npm --prefix app run test:settings",
     "app:test:session-business": "npm --prefix app run test:session-business"
   },

@@ -22,8 +22,11 @@ function redirectAfterLogin() {
 }
 
 const notice = computed(() => {
-  if (route.query.confirmed === '1') return 'Tu correo fue confirmado. Ya puedes iniciar sesión.'
-  if (route.query.recovered === '1') return 'Tu contraseña fue actualizada. Inicia sesión nuevamente.'
+  if (route.query.expired === '1') {
+    return { severity: 'warn' as const, text: 'Tu sesión venció por seguridad. Vuelve a entrar para seguir donde ibas.' }
+  }
+  if (route.query.confirmed === '1') return { severity: 'success' as const, text: 'Tu correo fue confirmado. Ya puedes iniciar sesión.' }
+  if (route.query.recovered === '1') return { severity: 'success' as const, text: 'Tu contraseña fue actualizada. Inicia sesión nuevamente.' }
   return null
 })
 
@@ -59,8 +62,8 @@ async function submit() {
 <template>
   <AuthHeader title="Inicia sesión" description="Accede a tus negocios y continúa donde lo dejaste." />
 
-  <PrimeMessage v-if="notice" severity="success" :closable="false" class="mb-5">
-    {{ notice }}
+  <PrimeMessage v-if="notice" :severity="notice.severity" :closable="false" class="mb-5" data-testid="login-notice">
+    {{ notice.text }}
   </PrimeMessage>
 
   <form class="space-y-4" novalidate @submit.prevent="submit">

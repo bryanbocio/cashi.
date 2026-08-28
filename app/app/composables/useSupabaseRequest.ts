@@ -1,5 +1,6 @@
 import { useToast } from 'primevue/usetoast'
-import { toUserMessage } from '~/utils/errors'
+import { isSessionExpiredError, toUserMessage } from '~/utils/errors'
+import { goToExpiredSession } from '~/utils/session'
 
 type SupabaseResult = {
   data: unknown
@@ -14,8 +15,13 @@ type RequestOptions = {
 
 export function useSupabaseRequest() {
   const toast = useToast()
+  const route = useRoute()
 
   function notifyError(error: unknown, options: RequestOptions = {}) {
+    // Una sesión vencida no es un error de esta operación: llevarlo al login
+    // con su aviso explica más que un Toast rojo sobre una pantalla ya inútil.
+    if (isSessionExpiredError(error) && goToExpiredSession(route.fullPath)) return
+
     toast.add({
       severity: 'error',
       summary: options.errorTitle ?? 'No se pudo completar',

@@ -9,6 +9,7 @@ const emit = defineEmits<{ action: [] }>()
 
 const client = useSupabaseClient()
 const businessStore = useBusinessStore()
+const authStore = useAuthStore()
 const { notifyError } = useSupabaseRequest()
 const popover = ref<{ hide: () => void; toggle: (event: Event) => void } | null>(null)
 const open = ref(false)
@@ -60,17 +61,24 @@ async function signOut() {
   if (busy.value) return
 
   busy.value = true
+  // Marca el cierre como voluntario para que el aviso de sesión expirada no
+  // aparezca cuando es el propio usuario quien sale.
+  authStore.beginSignOut()
   try {
     const { error } = await client.auth.signOut()
     if (error) throw error
 
     clearNuxtData()
     businessStore.reset()
+    // Salir por voluntad propia borra la marca: al volver no debe leerse como
+    // una sesión vencida.
+    useCookie('cashi.session-seen', { path: '/' }).value = null
     close()
     await navigateTo('/login')
   } catch (error) {
     notifyError(error, { errorTitle: 'No pudimos cerrar la sesión' })
   } finally {
+    authStore.endSignOut()
     busy.value = false
   }
 }

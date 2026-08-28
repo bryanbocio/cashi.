@@ -30,6 +30,30 @@ const messagePatterns: Array<[RegExp, string]> = [
   [/failed to fetch|network error|fetch failed/i, 'No pudimos conectar con el servicio. Revisa tu conexión.'],
 ]
 
+/**
+ * Códigos y mensajes que significan «esta sesión ya no sirve».
+ *
+ * PostgREST devuelve `PGRST301` cuando el JWT venció; Auth usa
+ * `session_not_found` y `refresh_token_not_found` cuando el refresco falla.
+ * No se mira solo el 401: unas credenciales equivocadas también lo son y ahí
+ * la sesión no tiene nada que ver.
+ */
+const SESSION_EXPIRED_CODES = new Set([
+  'PGRST301',
+  'session_not_found',
+  'session_expired',
+  'refresh_token_not_found',
+  'refresh_token_already_used',
+])
+
+const SESSION_EXPIRED_PATTERN = /jwt.*expired|token.*expired|session.*(expired|not found)|refresh.*token.*(not found|already used)/i
+
+export function isSessionExpiredError(error: unknown): boolean {
+  const normalized = asErrorLike(error)
+  if (normalized.code && SESSION_EXPIRED_CODES.has(normalized.code.trim())) return true
+  return Boolean(normalized.message && SESSION_EXPIRED_PATTERN.test(normalized.message))
+}
+
 function asErrorLike(error: unknown): ErrorLike {
   if (typeof error === 'string') return { message: error }
   if (error && typeof error === 'object') return error as ErrorLike
