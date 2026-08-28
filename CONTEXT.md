@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar X9.1. **Las Fases 0 a 8 están terminadas** y la Fase 9 de cierre está empezada. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
+Actualizado: 27 de agosto de 2026, después de completar X9.2. **Las Fases 0 a 8 están terminadas** y la Fase 9 de cierre está empezada. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
 
 ## Preferencias del usuario
 
@@ -63,8 +63,9 @@ Completado y versionado:
 | S8.1 | `a0c0443` | Edge Function `document-pdf`: plantilla única de factura y cotización |
 | F8.1 | `6d5c87d` | Visor de documentos con descarga de PDF e imagen y conversión de cotizaciones |
 | X9.1 | `2f956af` | Pantalla de sesión expirada y repaso de estados vacíos |
+| X9.2 | `47943ec` | Recorrido completo sobre un negocio nuevo y aislamiento entre negocios |
 
-La siguiente tarea pendiente del `PLAN.md` es **X9.2 · Pruebas E2E**.
+Las tareas pendientes del `PLAN.md` son **X9.3 · Despliegue** y **X9.4 · Observabilidad**, y las dos necesitan hablarse con el usuario antes de empezar.
 
 ## Qué está construido y qué no
 
@@ -191,6 +192,7 @@ npm run app:typecheck
 npm run app:build
 npm --prefix app run smoke
 npm run app:test:auth
+npm run app:test:business-isolation
 npm run app:test:business-switcher
 npm run app:test:caja
 npm run app:test:credits
@@ -199,6 +201,7 @@ npm run app:test:documents
 npm run app:test:expenses
 npm run app:test:inventory
 npm run app:test:inventory-import
+npm run app:test:journey
 npm run app:test:purchases
 npm run app:test:quotes
 npm run app:test:session-expired
@@ -398,12 +401,14 @@ npm run db:types
 
 ## Última validación
 
-Validaciones vigentes al completar X9.1:
+Validaciones vigentes al completar X9.2:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:reports`: cuatro cifras del mes, ganancia por categoría ordenada, mejor y peor producto, historial del periodo, aviso documental, CSV descargado y verificado línea por línea, cambio a Hoy y versión móvil accesible.
+- `npm run app:test:journey`: recorrido completo sobre un negocio **recién registrado**, no sobre el seed: registro con confirmación por Mailpit, creación del negocio, alta de producto por debajo del mínimo, venta de contado, cotización con cliente convertida a fiado, abono total, orden sugerida creada y recibida, y comprobación de que el mes en curso cuadra en 30.000 mientras el anterior está vacío. Cierra comprobando en PostgreSQL 2 ventas, stock 24, 10.000 abonados y la orden `RECEIVED`. Borra su negocio y su usuario.
+- `npm run app:test:business-isolation`: dos negocios **del mismo usuario**, donde la RLS no protege nada y lo único que separa los datos es el filtro por negocio activo. Comprueba en las dos direcciones que inventario, buscador de Caja, gastos, cotizaciones, fiados, Reportes y Resumen no se mezclan, y confirma el reparto en PostgreSQL. Borra solo el negocio que creó.
 - `npm run app:test:session-expired`: primera visita sin aviso, recarga con la sesión muerta con aviso y destino conservado, vuelta al destino tras entrar, aviso una sola vez, cierre de sesión voluntario sin aviso y caída de la sesión con la pestaña abierta. No deja fixtures.
 - `npm run app:test:documents`: abre el documento de una venta desde el Resumen, comprueba encabezado, líneas, total y nota, descarga el PDF real de la Edge Function y la imagen PNG generada en el cliente, cierra con Escape, comprueba que cambiar de sección lo cierra, abre una cotización vencida con su sello y sin conversiones, y convierte una vigente a venta comprobando el resultado en PostgreSQL. En móvil verifica que no desborda y que sus botones llegan a 44 px. No deja fixtures.
 - `npm run app:test:dashboard`: KPIs de la venta del día, margen del 40 %, gráfica de 14 días, rentabilidad ordenada, última venta con su aviso documental, tres alertas en orden, navegación filtrada a Inventario y el selector de periodo con sus 18 meses; en móvil, dos columnas de KPI, segmentado de ancho completo, sin desbordes y sin controles bajo 44 px.
@@ -425,25 +430,34 @@ Validaciones vigentes al completar X9.1:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: X9.2
+## Próximo trabajo: hablarlo con el usuario
 
-El proyecto ya tiene 17 flujos E2E, pero cada uno prueba una vista. El plan pide
-además dos que hoy no existen:
+Las dos tareas que quedan **no se pueden empezar en solitario**:
 
-- Un **recorrido completo encadenado**: registro → crear negocio → venta →
-  cotización a fiado → abono total → recibir compra → navegar a un mes anterior.
-  Sobre un negocio recién creado, no sobre el demo, para que no dependa del seed.
-- Un **test de aislamiento entre dos negocios del mismo usuario**: lo que se
-  registra en uno no puede verse desde el otro. `business-switcher` ya roza esto
-  con el Inventario; aquí toca cubrir venta, fiado, gasto y cotización.
+- **X9.3 · Despliegue.** Sale del entorno local: proyecto Supabase de producción,
+  migraciones por CI (`supabase db push`), Nuxt en Vercel con sus variables y
+  backups diarios. Exige credenciales y decisiones de cuenta del usuario. Hoy no
+  hay ningún proyecto remoto enlazado.
+- **X9.4 · Observabilidad.** Logs de Edge Functions revisables, Sentry o similar
+  en el frontend y una consulta guardada de errores de RPC. Sentry es una
+  dependencia nueva y el usuario pidió revisar licencias antes de añadirlas.
 
-Después quedan **X9.3 · Despliegue** y **X9.4 · Observabilidad**, y las dos
-necesitan hablarse antes: la primera sale del entorno local y exige credenciales
-del usuario; la segunda añade una dependencia nueva (Sentry o similar).
+Además hay dos decisiones de producto pendientes, las dos anotadas arriba:
+crear clientes desde la interfaz y anular ventas con `void_sale`, que sigue sin
+consumidor.
 
-Pendiente transversal: `void_sale` sigue sin interfaz. Anular una venta no
-aparece en ninguna tarea del plan; decidir con el usuario si se añade o se deja
-fuera antes de cerrar la Fase 9.
+## Hueco de producto detectado en X9.2
+
+**No hay ninguna forma de crear un cliente desde la interfaz.** La app solo lee
+`customer`; ni Caja ni Fiados ni Ajustes permiten darlo de alta, y el `PLAN.md`
+no se lo asigna a ninguna tarea. En la práctica un negocio recién creado **no
+puede registrar un fiado nunca**, porque el selector de cliente de Caja siempre
+está vacío y `create_sale` rechaza el crédito sin cliente.
+
+La RLS sí permite la inserción, así que es un hueco de interfaz, no de permisos.
+`full-journey` lo esquiva insertando el cliente con `psql` y lo deja anotado en
+el propio código. Conviene decidir con el usuario si entra antes de cerrar la
+Fase 9.
 
 ## Nota de operación
 
