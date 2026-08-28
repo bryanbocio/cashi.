@@ -145,13 +145,12 @@ watch([period, monthOffset], () => {
   reloadPeriod(businessId)
 })
 
+const documentId = ref<string | null>(null)
+const documentOpen = ref(false)
+
 function openSale(sale: SaleHistoryRow) {
-  toast.add({
-    severity: 'info',
-    summary: `Venta ${sale.code}`,
-    detail: 'El visor y la descarga en PDF se habilitarán en la etapa de documentos.',
-    life: 4500,
-  })
+  documentId.value = sale.id
+  documentOpen.value = true
 }
 
 function exportCsv() {
@@ -205,5 +204,7 @@ function exportCsv() {
       @open="openSale"
       @export="exportCsv"
     />
+
+    <DocumentsDocumentViewer v-model:open="documentOpen" kind="SALE" :document-id="documentId" />
   </section>
 </template>

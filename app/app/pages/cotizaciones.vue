@@ -100,13 +100,12 @@ function openDelete(quote: QuoteRow) {
   deleteOpen.value = true
 }
 
-function showDocumentPending(quote: QuoteRow) {
-  toast.add({
-    severity: 'info',
-    summary: `Documento ${quote.code}`,
-    detail: 'El visor y la descarga en PDF se habilitarán en la etapa de documentos.',
-    life: 4500,
-  })
+const documentId = ref<string | null>(null)
+const documentOpen = ref(false)
+
+function openDocument(quote: QuoteRow) {
+  documentId.value = quote.id
+  documentOpen.value = true
 }
 
 function quoteMeta(quote: QuoteRow) {
@@ -159,7 +158,7 @@ function isConverting(quote: QuoteRow, method: 'CASH' | 'CREDIT') {
           <div class="flex flex-wrap justify-end gap-1.5">
             <UiButton :loading="isConverting(row as QuoteRow, 'CASH')" :disabled="(row as QuoteRow).status !== 'OPEN' || Boolean(convertingKey)" :title="(row as QuoteRow).status === 'EXPIRED' ? 'La cotización está vencida' : 'Convertir en venta de contado'" :data-testid="`quote-charge-${(row as QuoteRow).id}`" @click="convertQuote(row as QuoteRow, 'CASH')"><IconBanknote class="size-3.5" aria-hidden="true" />Cobrar</UiButton>
             <UiButton variant="secondary" :loading="isConverting(row as QuoteRow, 'CREDIT')" :disabled="(row as QuoteRow).status !== 'OPEN' || !(row as QuoteRow).customerId || Boolean(convertingKey)" :title="!(row as QuoteRow).customerId ? 'Asigna un cliente para pasarla a fiado' : (row as QuoteRow).status === 'EXPIRED' ? 'La cotización está vencida' : 'Convertir en fiado'" :data-testid="`quote-credit-${(row as QuoteRow).id}`" @click="convertQuote(row as QuoteRow, 'CREDIT')"><IconHandCoins class="size-3.5" aria-hidden="true" />A fiado</UiButton>
-            <UiButton variant="ghost" :data-testid="`quote-document-${(row as QuoteRow).id}`" @click="showDocumentPending(row as QuoteRow)"><IconFileText class="size-3.5" aria-hidden="true" />Ver/PDF</UiButton>
+            <UiButton variant="ghost" :data-testid="`quote-document-${(row as QuoteRow).id}`" @click="openDocument(row as QuoteRow)"><IconFileText class="size-3.5" aria-hidden="true" />Ver/PDF</UiButton>
             <UiButton variant="ghost" :data-testid="`quote-delete-${(row as QuoteRow).id}`" @click="openDelete(row as QuoteRow)"><IconTrash class="size-3.5" aria-hidden="true" /><span class="sr-only">Eliminar</span></UiButton>
           </div>
         </template>
@@ -174,7 +173,7 @@ function isConverting(quote: QuoteRow, method: 'CASH' | 'CREDIT') {
             <div class="grid grid-cols-2 gap-2">
               <UiButton class="w-full" :loading="isConverting(item as QuoteRow, 'CASH')" :disabled="(item as QuoteRow).status !== 'OPEN' || Boolean(convertingKey)" :data-testid="`quote-charge-mobile-${(item as QuoteRow).id}`" @click="convertQuote(item as QuoteRow, 'CASH')"><IconBanknote class="size-4" aria-hidden="true" />Cobrar</UiButton>
               <UiButton class="w-full" variant="secondary" :loading="isConverting(item as QuoteRow, 'CREDIT')" :disabled="(item as QuoteRow).status !== 'OPEN' || !(item as QuoteRow).customerId || Boolean(convertingKey)" :data-testid="`quote-credit-mobile-${(item as QuoteRow).id}`" @click="convertQuote(item as QuoteRow, 'CREDIT')"><IconHandCoins class="size-4" aria-hidden="true" />A fiado</UiButton>
-              <UiButton class="w-full" variant="ghost" :data-testid="`quote-document-mobile-${(item as QuoteRow).id}`" @click="showDocumentPending(item as QuoteRow)"><IconFileText class="size-4" aria-hidden="true" />Ver/PDF</UiButton>
+              <UiButton class="w-full" variant="ghost" :data-testid="`quote-document-mobile-${(item as QuoteRow).id}`" @click="openDocument(item as QuoteRow)"><IconFileText class="size-4" aria-hidden="true" />Ver/PDF</UiButton>
               <UiButton class="w-full" variant="ghost" :data-testid="`quote-delete-mobile-${(item as QuoteRow).id}`" @click="openDelete(item as QuoteRow)"><IconTrash class="size-4" aria-hidden="true" />Eliminar</UiButton>
             </div>
           </article>
@@ -184,5 +183,12 @@ function isConverting(quote: QuoteRow, method: 'CASH' | 'CREDIT') {
 
     <p v-if="expiredCount" class="mt-5 max-w-190 text-[12px] leading-relaxed text-muted">Las cotizaciones vencidas permanecen visibles para consultar o eliminar, pero ya no se pueden cobrar ni pasar a fiado.</p>
     <QuotesDeleteQuoteModal v-model:open="deleteOpen" :quote="selectedQuote" @deleted="loadQuotes()" />
+
+    <DocumentsDocumentViewer
+      v-model:open="documentOpen"
+      kind="QUOTE"
+      :document-id="documentId"
+      @converted="loadQuotes()"
+    />
   </section>
 </template>

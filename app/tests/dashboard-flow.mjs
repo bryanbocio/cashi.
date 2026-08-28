@@ -209,8 +209,12 @@ try {
   await waitForText(page.locator('[data-testid="recent-sales"]'), 'FAC-00001', 'Código de la última venta')
   await waitForText(page.locator('[data-testid="recent-sale-FAC-00001"]'), '3 artículos', 'Artículos de la última venta')
   await waitForText(page.locator('[data-testid="recent-sale-FAC-00001"]'), '190.000', 'Total de la última venta')
+  // Tocar una venta abre el visor de documentos; su detalle lo prueba
+  // `documents-flow`.
   await page.locator('[data-testid="recent-sale-FAC-00001"]').click()
-  await page.getByText('El visor y la descarga en PDF se habilitarán en la etapa de documentos.').waitFor()
+  await waitForText(page.locator('[data-testid="document-code"]'), 'FAC-00001', 'Documento de la venta reciente')
+  await page.locator('[data-testid="document-close"]').click()
+  await page.locator('[data-testid="document-viewer"]').waitFor({ state: 'hidden' })
 
   // Alertas: los tres grupos que produce el seed, en orden operativo.
   await waitForText(page.locator('[data-testid="alert-count"]'), '3', 'Conteo de alertas')

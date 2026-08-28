@@ -185,8 +185,12 @@ try {
   if (!(await page.locator(`[data-testid="quote-charge-${expiredQuoteId}"]`).isDisabled())) {
     throw new Error('Cobrar está habilitado para una cotización vencida.')
   }
+  // Ver/PDF abre el visor de documentos (F8.1); su contenido lo prueba
+  // `documents-flow`, aquí solo se comprueba que la acción lleva allí.
   await page.locator(`[data-testid="quote-document-${secondQuoteId}"]`).click()
-  await page.getByText('El visor y la descarga en PDF se habilitarán').waitFor()
+  await page.locator('[data-testid="document-viewer"]').waitFor({ state: 'visible' })
+  await page.locator('[data-testid="document-close"]').click()
+  await page.locator('[data-testid="document-viewer"]').waitFor({ state: 'hidden' })
 
   await page.setViewportSize({ width: 390, height: 844 })
   const secondCard = page.locator(`[data-testid="quote-card-${secondQuoteId}"]`)

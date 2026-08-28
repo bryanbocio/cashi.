@@ -182,8 +182,11 @@ try {
   await waitForText(page.locator('[data-testid="report-sale-FAC-00002"]'), '25.000', 'Total de la venta con descuento')
   await waitForText(page.locator('[data-testid="report-sale-FAC-00002"]'), 'Transferencia', 'Método de la segunda venta')
 
+  // El historial también abre el visor de documentos.
   await page.locator('[data-testid="report-sale-FAC-00001"]').click()
-  await page.getByText('El visor y la descarga en PDF se habilitarán en la etapa de documentos.').waitFor()
+  await waitForText(page.locator('[data-testid="document-code"]'), 'FAC-00001', 'Documento del historial')
+  await page.locator('[data-testid="document-close"]').click()
+  await page.locator('[data-testid="document-viewer"]').waitFor({ state: 'hidden' })
 
   // Exportación CSV: se comprueba el archivo, no solo el clic.
   const [download] = await Promise.all([

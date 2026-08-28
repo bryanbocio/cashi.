@@ -27,6 +27,7 @@
     "app:test:caja": "npm --prefix app run test:caja",
     "app:test:credits": "npm --prefix app run test:credits",
     "app:test:dashboard": "npm --prefix app run test:dashboard",
+    "app:test:documents": "npm --prefix app run test:documents",
     "app:test:expenses": "npm --prefix app run test:expenses",
     "app:test:inventory": "npm --prefix app run test:inventory",
     "app:test:inventory-import": "npm --prefix app run test:inventory-import",

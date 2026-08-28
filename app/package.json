@@ -15,6 +15,7 @@
     "test:caja": "node tests/caja-flow.mjs",
     "test:credits": "node tests/credits-flow.mjs",
     "test:dashboard": "node tests/dashboard-flow.mjs",
+    "test:documents": "node tests/documents-flow.mjs",
     "test:expenses": "node tests/expenses-flow.mjs",
     "test:inventory": "node tests/inventory-flow.mjs",
     "test:inventory-import": "node tests/inventory-import.mjs",

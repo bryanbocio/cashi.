@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useToast } from 'primevue/usetoast'
 import type { Database } from '~/types/database'
 import type { MetricsAlert, MetricsDay, MetricsPeriod, MetricsProduct, MetricsSummary, RecentSale } from '~/utils/metrics'
 import {
@@ -20,7 +19,6 @@ useHead({ title: 'Resumen · Cashi' })
 
 const client = useSupabaseClient<Database>()
 const businessStore = useBusinessStore()
-const toast = useToast()
 const { execute } = useSupabaseRequest()
 
 // `UiPeriodSelector` mueve estos dos valores; el resto de la vista solo los lee.
@@ -144,13 +142,12 @@ watch([period, monthOffset], () => {
   Promise.all([loadSummary(businessId), loadProducts(businessId)])
 })
 
+const documentId = ref<string | null>(null)
+const documentOpen = ref(false)
+
 function openSale(sale: RecentSale) {
-  toast.add({
-    severity: 'info',
-    summary: `Venta ${sale.code}`,
-    detail: 'El visor y la descarga en PDF se habilitarán en la etapa de documentos.',
-    life: 4500,
-  })
+  documentId.value = sale.id
+  documentOpen.value = true
 }
 </script>
 
@@ -185,5 +182,7 @@ function openSale(sale: RecentSale) {
       <DashboardRecentSales :sales="sales" :timezone="timezone" :loading="salesLoading" @open="openSale" />
       <DashboardAlertList :alerts="alerts" :loading="alertsLoading" />
     </div>
+
+    <DocumentsDocumentViewer v-model:open="documentOpen" kind="SALE" :document-id="documentId" />
   </section>
 </template>
