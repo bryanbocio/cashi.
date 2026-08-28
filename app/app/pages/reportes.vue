@@ -110,7 +110,9 @@ function loadHistory(businessId: string) {
       .from('v_sale_detail')
       .select(SALE_HISTORY_COLUMNS)
       .eq('business_id', businessId)
-      .eq('status', 'CONFIRMED')
+      // Se listan también las anuladas: son el rastro de lo que se deshizo.
+      // Las cifras del periodo siguen contando solo las confirmadas, porque
+      // salen de `metrics_summary`.
       .gte('sold_at', limits.from)
       .lt('sold_at', limits.to)
       .order('sold_at', { ascending: false }))
@@ -205,6 +207,11 @@ function exportCsv() {
       @export="exportCsv"
     />
 
-    <DocumentsDocumentViewer v-model:open="documentOpen" kind="SALE" :document-id="documentId" />
+    <DocumentsDocumentViewer
+      v-model:open="documentOpen"
+      kind="SALE"
+      :document-id="documentId"
+      @voided="reloadPeriod(businessStore.activeBusinessId ?? '')"
+    />
   </section>
 </template>

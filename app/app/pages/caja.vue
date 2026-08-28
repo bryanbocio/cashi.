@@ -18,6 +18,7 @@ const { execute } = useSupabaseRequest()
 const { formatMoney } = useMoney()
 
 const customers = ref<Option[]>([])
+const customerOpen = ref(false)
 const charging = ref(false)
 const quoting = ref(false)
 const quoteOpen = ref(false)
@@ -38,6 +39,13 @@ watch(() => businessStore.activeBusinessId, businessId => {
 
 function addProduct(product: CartProduct) {
   cart.add(product)
+}
+
+/** El cliente recién creado queda seleccionado: era para esta venta. */
+async function afterCustomerCreated(customer: { id: string; name: string }) {
+  const businessId = businessStore.activeBusinessId
+  if (businessId) await loadCustomers(businessId)
+  cart.customerId = customer.id
 }
 
 /** La fecha viaja como `YYYY-MM-DD`: es una fecha del negocio, no un instante. */
@@ -153,6 +161,7 @@ async function saveQuote(validUntil: string) {
         :quoting="quoting"
         @charge="charge"
         @quote="openQuote"
+        @create-customer="customerOpen = true"
       />
     </div>
 
@@ -172,6 +181,8 @@ async function saveQuote(validUntil: string) {
         Cobrar
       </UiButton>
     </div>
+
+    <CustomersCustomerFormModal v-model:open="customerOpen" @created="afterCustomerCreated" />
 
     <QuotesSaveQuoteModal
       v-model:open="quoteOpen"

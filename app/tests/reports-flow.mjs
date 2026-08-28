@@ -198,14 +198,14 @@ try {
   }
   const csv = readFileSync(await download.path(), 'utf8')
   const csvLines = csv.replace(/^\uFEFF/, '').trim().split(/\r?\n/)
-  if (csvLines[0] !== 'Codigo;Fecha;Cliente;Pago;Articulos;Descuento;Total;Ganancia') {
+  if (csvLines[0] !== 'Codigo;Fecha;Cliente;Pago;Estado;Articulos;Descuento;Total;Ganancia') {
     throw new Error(`El encabezado del CSV es «${csvLines[0]}».`)
   }
   if (csvLines.length !== monthSales + 1) {
     throw new Error(`El CSV trajo ${csvLines.length - 1} ventas en vez de ${monthSales}.`)
   }
   const discounted = csvLines.find(line => line.startsWith('FAC-00002;'))
-  if (!discounted?.endsWith(';Mostrador;Transferencia;1;4000;25000;10000')) {
+  if (!discounted?.endsWith(';Mostrador;Transferencia;Confirmada;1;4000;25000;10000')) {
     throw new Error(`La venta con descuento se exportó como «${discounted}».`)
   }
 

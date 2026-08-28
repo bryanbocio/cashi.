@@ -22,6 +22,17 @@ function psql(query) {
   ], { encoding: 'utf8' }).trim()
 }
 
+/** Última línea útil: las consultas con `set_config` devuelven dos filas. */
+function psqlValue(query) {
+  return psql(query).split(/\r?\n/).map(line => line.trim()).filter(Boolean).at(-1) ?? ''
+}
+
+/** Ventas confirmadas del mes según `metrics_summary`, que es quien manda. */
+function confirmedThisMonth() {
+  return Number(psqlValue(`select set_config('request.jwt.claim.sub', '${demoUserId}', false);
+    select (public.metrics_summary('${demoBusinessId}', 'month', 0) ->> 'sales_count')::bigint;`))
+}
+
 function cleanup() {
   psql(`
     delete from public.stock_movement where ref_table = 'sale' and ref_id in (
@@ -224,7 +235,38 @@ try {
   if (smallTargets.length) throw new Error(`Controles del visor por debajo de 44 px: ${smallTargets.join(', ')}`)
 
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
-  console.log('PASS: el visor abrió venta y cotización, descargó PDF e imagen, convirtió desde el documento y se cerró al cambiar de sección.')
+  // --- Anular la venta desde el propio visor ---
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.locator('[data-testid="document-close"]').click()
+  await viewer.waitFor({ state: 'hidden' })
+  const beforeVoid = confirmedThisMonth()
+  await waitForText(page.locator('[data-testid="report-history-count"]'), `${beforeVoid} ventas`, 'Historial antes de anular')
+
+  await page.locator('[data-testid="report-sale-FAC-00001"]').click()
+  await viewer.waitFor({ state: 'visible' })
+  await page.locator('[data-testid="document-void"]').click()
+  await page.locator('[data-testid="void-sale-confirm"]').click()
+  await page.getByText('Venta FAC-00001 anulada').waitFor()
+  await viewer.waitFor({ state: 'hidden' })
+
+  const afterVoid = psql(`select
+      (select status from public.sale where business_id = '${demoBusinessId}' and code = 'FAC-00001'),
+      (select stock from public.product where business_id = '${demoBusinessId}' and sku = 'PER-001');`)
+  // La anulación devuelve las dos unidades vendidas al stock del seed.
+  if (afterVoid !== 'VOID|12') throw new Error(`La anulación no dejó el estado esperado: ${afterVoid}`)
+
+  // El historial la conserva marcada, pero ya no cuenta como venta.
+  await waitForText(page.locator('[data-testid="report-history-count"]'), `${beforeVoid - 1} ventas · 1 anulada`, 'Historial después de anular')
+  await waitForText(page.locator('[data-testid="report-sale-FAC-00001"]'), 'ANULADA', 'Marca de anulada en el historial')
+
+  await page.locator('[data-testid="report-sale-FAC-00001"]').click()
+  await viewer.waitFor({ state: 'visible' })
+  await waitForText(page.locator('[data-testid="document-stamp"]'), 'ANULADA', 'Sello de la venta anulada')
+  if (await page.locator('[data-testid="document-void"]').count()) {
+    throw new Error('Una venta ya anulada no debe ofrecer anularse otra vez.')
+  }
+
+  console.log('PASS: el visor abrió venta y cotización, descargó PDF e imagen, convirtió desde el documento, anuló una venta y se cerró al cambiar de sección.')
 } catch (error) {
   const pageText = await page?.locator('body').innerText().catch(() => '')
   console.error(`URL final: ${page?.url() ?? 'sin página'}\nErrores del navegador: ${browserErrors.join(' | ') || 'ninguno'}\nContenido: ${pageText?.slice(0, 3000)}`)

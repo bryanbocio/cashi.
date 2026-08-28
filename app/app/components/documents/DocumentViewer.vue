@@ -13,7 +13,7 @@ import {
 
 const props = defineProps<{ kind: DocumentKind | null; documentId: string | null }>()
 const open = defineModel<boolean>('open', { required: true })
-const emit = defineEmits<{ converted: [] }>()
+const emit = defineEmits<{ converted: []; voided: [] }>()
 
 const client = useSupabaseClient<Database>()
 const businessStore = useBusinessStore()
@@ -27,6 +27,7 @@ const loading = ref(false)
 const downloading = ref(false)
 const exporting = ref(false)
 const converting = ref<'CASH' | 'CREDIT' | null>(null)
+const voidOpen = ref(false)
 const paper = ref<HTMLElement | null>(null)
 
 const business = computed(() => businessStore.activeBusiness)
@@ -133,6 +134,14 @@ async function convert(method: 'CASH' | 'CREDIT') {
   }
 }
 
+/** Solo una venta confirmada se puede anular; la anulada ya lo está. */
+const canVoid = computed(() => view.value?.kind === 'SALE' && view.value.status === 'CONFIRMED')
+
+function afterVoid() {
+  emit('voided')
+  open.value = false
+}
+
 /** Un fiado sin cliente no se puede convertir: lo rechaza `create_sale`. */
 const canConvertToCredit = computed(() => view.value?.canConvert && view.value.customerName !== 'Sin cliente')
 </script>
@@ -235,8 +244,17 @@ const canConvertToCredit = computed(() => view.value?.canConvert && view.value.c
             <UiButton variant="secondary" :disabled="busy" :loading="converting === 'CASH'" data-testid="document-to-sale" @click="convert('CASH')">Convertir en venta</UiButton>
             <UiButton variant="secondary" :disabled="busy || !canConvertToCredit" :loading="converting === 'CREDIT'" data-testid="document-to-credit" @click="convert('CREDIT')">Convertir en fiado</UiButton>
           </template>
+          <UiButton v-if="canVoid" variant="danger" :disabled="busy" data-testid="document-void" @click="voidOpen = true">Anular venta</UiButton>
           <UiButton variant="ghost" class="!text-white" :disabled="busy" data-testid="document-close" @click="close">Cerrar</UiButton>
         </div>
+
+        <DocumentsVoidSaleModal
+          v-model:open="voidOpen"
+          :code="view?.code ?? null"
+          :sale-id="view?.id ?? null"
+          :total="view?.total ?? 0"
+          @voided="afterVoid"
+        />
       </div>
     </div>
   </Teleport>

@@ -149,11 +149,6 @@ try {
   businessId = await page.evaluate(() => localStorage.getItem('cashi.active-business-id'))
   if (!businessId) throw new Error('El negocio nuevo no quedó activo.')
 
-  // Un negocio recién creado no tiene clientes y **la interfaz no permite
-  // crearlos**: el fiado del recorrido necesita este apaño.
-  psql(`insert into public.customer (business_id, name, phone)
-    values ('${businessId}', '${customerName}', '3005550000');`)
-
   // --- 2. Producto por debajo del mínimo desde el primer día ---
   await page.goto(`${baseUrl}/inventario`, { waitUntil: 'networkidle' })
   await waitForText(page.locator('[data-testid="inventory-count"]'), '0 productos', 'Inventario del negocio nuevo')
@@ -176,11 +171,20 @@ try {
   await page.locator('[data-testid="caja-charge"]').click()
   await page.getByText('Venta FAC-00001 registrada').waitFor()
 
-  // --- 4. Cotización con cliente y conversión a fiado ---
+  // --- 4. Cliente creado desde la propia Caja, sin perder el carrito ---
   await page.locator('[data-testid="caja-search"]').fill(sku)
   await page.locator(`[data-testid="result-${sku}"]`).click()
-  await page.locator('#caja-customer').click()
-  await page.getByRole('option', { name: customerName }).click()
+  await waitForText(page.locator('[data-testid="cart-count"]'), '1 producto', 'Carrito antes de crear el cliente')
+
+  await page.locator('[data-testid="caja-new-customer"]').click()
+  await page.locator('#customer-name').fill(customerName)
+  await page.locator('#customer-phone').fill('3005550000')
+  await page.locator('[data-testid="customer-create-submit"]').click()
+  await page.getByText('Cliente creado').waitFor()
+
+  // El carrito sigue intacto y el cliente nuevo queda seleccionado.
+  await waitForText(page.locator('[data-testid="cart-count"]'), '1 producto', 'Carrito después de crear el cliente')
+  await waitForText(page.locator('#caja-customer'), customerName, 'Cliente seleccionado tras crearlo')
   await page.locator('[data-testid="caja-save-quote"]').click()
   await page.locator('[data-testid="quote-save-submit"]').click()
   await page.waitForURL(url => url.pathname === '/cotizaciones')

@@ -183,6 +183,11 @@ function openSale(sale: RecentSale) {
       <DashboardAlertList :alerts="alerts" :loading="alertsLoading" />
     </div>
 
-    <DocumentsDocumentViewer v-model:open="documentOpen" kind="SALE" :document-id="documentId" />
+    <DocumentsDocumentViewer
+      v-model:open="documentOpen"
+      kind="SALE"
+      :document-id="documentId"
+      @voided="initialize(businessStore.activeBusinessId ?? '')"
+    />
   </section>
 </template>

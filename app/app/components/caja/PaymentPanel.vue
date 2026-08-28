@@ -4,7 +4,7 @@ import type { PaymentMethod } from '~/stores/cart'
 type Option = { label: string; value: string }
 
 defineProps<{ customers: Option[]; charging: boolean; quoting: boolean }>()
-const emit = defineEmits<{ charge: []; quote: [] }>()
+const emit = defineEmits<{ charge: []; quote: []; 'create-customer': [] }>()
 
 const cart = useCartStore()
 const { formatMoney } = useMoney()
@@ -24,7 +24,20 @@ const isCredit = computed(() => cart.paymentMethod === 'CREDIT')
     <h2 class="font-display text-[15px] font-bold tracking-[-.02em]">Cobro</h2>
 
     <div>
-      <label for="caja-customer" class="mb-1.5 block text-[11px] font-semibold text-ink">Cliente</label>
+      <div class="mb-1.5 flex items-baseline justify-between gap-3">
+        <label for="caja-customer" class="text-[11px] font-semibold text-ink">Cliente</label>
+        <!-- Crear el cliente aquí mismo: descubrir que no existe no puede
+             costar el carrito que se está cobrando. -->
+        <button
+          type="button"
+          class="cursor-pointer border-0 bg-transparent p-0 text-[11px] font-semibold text-accent underline disabled:cursor-wait disabled:opacity-60 max-[760px]:min-h-11"
+          :disabled="charging || quoting"
+          data-testid="caja-new-customer"
+          @click="emit('create-customer')"
+        >
+          + Nuevo cliente
+        </button>
+      </div>
       <PrimeSelect
         id="caja-customer"
         v-model="cart.customerId"
@@ -39,7 +52,7 @@ const isCredit = computed(() => cart.paymentMethod === 'CREDIT')
         fluid
       />
       <p v-if="!customers.length" class="mt-1.5 mb-0 text-[11px] text-muted">
-        Este negocio todavía no tiene clientes registrados.
+        Este negocio todavía no tiene clientes. Crea el primero para poder fiar.
       </p>
     </div>
 

@@ -11,7 +11,7 @@ import { SALE_METHOD_LABELS } from '~/utils/metrics'
 
 type SaleHistoryViewRow = Pick<
   Database['public']['Views']['v_sale_detail']['Row'],
-  'id' | 'code' | 'customer_name' | 'payment_method' | 'sold_at' | 'total' | 'discount' | 'gross_profit' | 'items' | 'line_count'
+  'id' | 'code' | 'customer_name' | 'payment_method' | 'status' | 'sold_at' | 'total' | 'discount' | 'gross_profit' | 'items' | 'line_count'
 >
 
 export type SaleHistoryRow = {
@@ -19,6 +19,7 @@ export type SaleHistoryRow = {
   code: string
   customerName: string | null
   paymentMethod: Database['public']['Enums']['payment_method']
+  status: Database['public']['Enums']['sale_status']
   soldAt: string
   total: number
   discount: number
@@ -27,7 +28,7 @@ export type SaleHistoryRow = {
   lineCount: number
 }
 
-export const SALE_HISTORY_COLUMNS = 'id, code, customer_name, payment_method, sold_at, total, discount, gross_profit, items, line_count'
+export const SALE_HISTORY_COLUMNS = 'id, code, customer_name, payment_method, status, sold_at, total, discount, gross_profit, items, line_count'
 
 /**
  * `metrics_products` acota a 100 filas. Un negocio que venda más de cien
@@ -37,12 +38,13 @@ export const SALE_HISTORY_COLUMNS = 'id, code, customer_name, payment_method, so
 export const REPORT_PRODUCT_LIMIT = 100
 
 export function toSaleHistoryRow(row: SaleHistoryViewRow): SaleHistoryRow[] {
-  if (!row.id || !row.code || !row.sold_at || !row.payment_method) return []
+  if (!row.id || !row.code || !row.sold_at || !row.payment_method || !row.status) return []
   return [{
     id: row.id,
     code: row.code,
     customerName: row.customer_name,
     paymentMethod: row.payment_method,
+    status: row.status,
     soldAt: row.sold_at,
     total: row.total ?? 0,
     discount: row.discount ?? 0,
@@ -106,12 +108,15 @@ function csvCell(value: string | number) {
  * para que la hoja de cálculo pueda sumarlos.
  */
 export function buildSalesCsv(rows: SaleHistoryRow[], businessDate: (instant: string) => string) {
-  const header = ['Codigo', 'Fecha', 'Cliente', 'Pago', 'Articulos', 'Descuento', 'Total', 'Ganancia']
+  const header = ['Codigo', 'Fecha', 'Cliente', 'Pago', 'Estado', 'Articulos', 'Descuento', 'Total', 'Ganancia']
   const lines = rows.map(row => [
     row.code,
     businessDate(row.soldAt),
     row.customerName ?? 'Mostrador',
     SALE_METHOD_LABELS[row.paymentMethod],
+    // La anulada se exporta con sus cifras, pero marcada: quien suma la hoja
+    // debe poder descontarla igual que la hacen las métricas.
+    row.status === 'VOID' ? 'Anulada' : 'Confirmada',
     row.items,
     row.discount,
     row.total,

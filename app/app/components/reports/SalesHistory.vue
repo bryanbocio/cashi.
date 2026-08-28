@@ -4,8 +4,13 @@ import { SALE_METHOD_LABELS, formatSaleTime } from '~/utils/metrics'
 import type { SaleHistoryRow } from '~/utils/reports'
 import { formatCalendarDate, instantToBusinessDate } from '~/utils/expenses'
 
-defineProps<{ rows: SaleHistoryRow[]; timezone: string; loading: boolean }>()
+const props = defineProps<{ rows: SaleHistoryRow[]; timezone: string; loading: boolean }>()
 const emit = defineEmits<{ open: [sale: SaleHistoryRow]; export: [] }>()
+
+// Las anuladas se listan para poder verlas, pero no cuentan como ventas: las
+// cifras de arriba solo suman las confirmadas.
+const confirmed = computed(() => props.rows.filter(row => row.status === 'CONFIRMED').length)
+const voided = computed(() => props.rows.length - confirmed.value)
 
 const { formatMoney } = useMoney()
 
@@ -41,7 +46,7 @@ function detailLabel(row: SaleHistoryRow) {
 
       <template v-else>
         <p class="m-0 px-3.5 pb-2 text-[11px] text-muted" aria-live="polite" data-testid="report-history-count">
-          {{ rows.length }} {{ rows.length === 1 ? 'venta' : 'ventas' }}
+          {{ confirmed }} {{ confirmed === 1 ? 'venta' : 'ventas' }}<template v-if="voided"> · {{ voided }} {{ voided === 1 ? 'anulada' : 'anuladas' }}</template>
         </p>
 
         <div class="grid grid-cols-[128px_minmax(0,1fr)_112px_96px_104px_100px] border-y border-black/8 px-3.5 py-1.5 font-mono text-[9.5px] font-medium tracking-[.05em] text-subtle uppercase max-[1120px]:hidden">
@@ -65,7 +70,8 @@ function detailLabel(row: SaleHistoryRow) {
 
               <span class="min-w-0 max-[1120px]:flex max-[1120px]:items-baseline max-[1120px]:justify-between max-[1120px]:gap-3">
                 <span class="block min-w-0 truncate">
-                  <span class="font-mono text-[11.5px]">{{ row.code }}</span>
+                  <span class="font-mono text-[11.5px]" :class="row.status === 'VOID' ? 'line-through decoration-negative' : ''">{{ row.code }}</span>
+                  <UiChip v-if="row.status === 'VOID'" tone="negative" class="ml-1.5">Anulada</UiChip>
                   <span class="text-subtle max-[1120px]:hidden"> · {{ detailLabel(row) }}</span>
                 </span>
                 <span class="hidden font-mono text-[13.5px] font-medium whitespace-nowrap max-[1120px]:block">{{ formatMoney(row.total) }}</span>
@@ -73,8 +79,8 @@ function detailLabel(row: SaleHistoryRow) {
 
               <span class="truncate text-muted max-[1120px]:hidden">{{ row.customerName ?? 'Mostrador' }}</span>
               <span class="truncate text-muted max-[1120px]:hidden">{{ SALE_METHOD_LABELS[row.paymentMethod] }}</span>
-              <span class="text-right font-mono max-[1120px]:hidden">{{ formatMoney(row.total) }}</span>
-              <span class="text-right font-mono text-positive max-[1120px]:hidden">{{ formatMoney(row.grossProfit) }}</span>
+              <span class="text-right font-mono max-[1120px]:hidden" :class="row.status === 'VOID' ? 'text-subtle line-through' : ''">{{ formatMoney(row.total) }}</span>
+              <span class="text-right font-mono max-[1120px]:hidden" :class="row.status === 'VOID' ? 'text-subtle line-through' : 'text-positive'">{{ formatMoney(row.grossProfit) }}</span>
 
               <!-- Bajo 1120 px las seis columnas no caben: la venta se lee como una línea de contexto. -->
               <span class="hidden text-[11.5px] text-subtle max-[1120px]:block">
