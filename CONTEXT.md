@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar F8.1. **La Fase 8 está terminada.** **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
+Actualizado: 27 de agosto de 2026, después de completar X9.1. **Las Fases 0 a 8 están terminadas** y la Fase 9 de cierre está empezada. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
 
 ## Preferencias del usuario
 
@@ -62,8 +62,9 @@ Completado y versionado:
 | — | `ca0af42` | Puerto propio para las tres pruebas que chocaban con el servidor de desarrollo |
 | S8.1 | `a0c0443` | Edge Function `document-pdf`: plantilla única de factura y cotización |
 | F8.1 | `6d5c87d` | Visor de documentos con descarga de PDF e imagen y conversión de cotizaciones |
+| X9.1 | `2f956af` | Pantalla de sesión expirada y repaso de estados vacíos |
 
-La siguiente tarea pendiente del `PLAN.md` es **X9.1 · Estados vacíos y errores**, que abre la Fase 9 de cierre.
+La siguiente tarea pendiente del `PLAN.md` es **X9.2 · Pruebas E2E**.
 
 ## Qué está construido y qué no
 
@@ -141,6 +142,27 @@ no simula una descarga antes de que exista `document-pdf`.
   `convert_quote`, la misma RPC de `/cotizaciones`. Sin cliente, «Convertir en
   fiado» queda desactivado; vencida o convertida, no aparece ninguno de los dos.
 
+## Sesión expirada
+
+- Una sesión que se cae lleva a `/login?expired=1&redirect=<destino>`, con aviso
+  en la propia pantalla de login y vuelta al destino tras entrar de nuevo.
+- Hay **dos caminos y los dos están cubiertos**, porque ninguno cubre al otro:
+  - Con la pestaña abierta, Supabase reintenta el refresco cada ~30 s y, al
+    fallar, emite `SIGNED_OUT`; lo escucha `plugins/session-expiry.client.ts`.
+  - Al recargar con la sesión ya muerta no llega ningún evento: el middleware
+    redirige antes. Por eso `auth.global.ts` deja la cookie `cashi.session-seen`
+    mientras hay sesión y la consume al redirigir. Es cookie y no
+    `localStorage` porque esa decisión también se toma en el servidor.
+- `authStore.signingOut` distingue el cierre voluntario del impuesto: sin esa
+  bandera, quien pulsa «Cerrar sesión» vería un aviso que no le corresponde. El
+  cierre voluntario también borra la marca.
+- `useSupabaseRequest` desvía a la misma pantalla cuando una consulta responde
+  con el JWT vencido (`PGRST301`, `session_not_found`…), en vez de mostrar un
+  Toast rojo sobre una pantalla que ya no sirve. En rutas anónimas no desvía:
+  ahí el error sí se muestra.
+- Los estados vacíos ya existían vista por vista y se revisaron uno a uno; no
+  hizo falta añadir ninguno. Los errores de RPC ya salían por Toast desde F0.2.
+
 ## Stack instalado
 
 - Nuxt `4.5.2`, Vue `3.5.41`, TypeScript `5.9.3`.
@@ -179,6 +201,7 @@ npm run app:test:inventory
 npm run app:test:inventory-import
 npm run app:test:purchases
 npm run app:test:quotes
+npm run app:test:session-expired
 npm run app:test:reports
 npm run app:test:onboarding
 npm run app:test:settings
@@ -375,12 +398,13 @@ npm run db:types
 
 ## Última validación
 
-Validaciones vigentes al completar F8.1:
+Validaciones vigentes al completar X9.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:reports`: cuatro cifras del mes, ganancia por categoría ordenada, mejor y peor producto, historial del periodo, aviso documental, CSV descargado y verificado línea por línea, cambio a Hoy y versión móvil accesible.
+- `npm run app:test:session-expired`: primera visita sin aviso, recarga con la sesión muerta con aviso y destino conservado, vuelta al destino tras entrar, aviso una sola vez, cierre de sesión voluntario sin aviso y caída de la sesión con la pestaña abierta. No deja fixtures.
 - `npm run app:test:documents`: abre el documento de una venta desde el Resumen, comprueba encabezado, líneas, total y nota, descarga el PDF real de la Edge Function y la imagen PNG generada en el cliente, cierra con Escape, comprueba que cambiar de sección lo cierra, abre una cotización vencida con su sello y sin conversiones, y convierte una vigente a venta comprobando el resultado en PostgreSQL. En móvil verifica que no desborda y que sus botones llegan a 44 px. No deja fixtures.
 - `npm run app:test:dashboard`: KPIs de la venta del día, margen del 40 %, gráfica de 14 días, rentabilidad ordenada, última venta con su aviso documental, tres alertas en orden, navegación filtrada a Inventario y el selector de periodo con sus 18 meses; en móvil, dos columnas de KPI, segmentado de ancho completo, sin desbordes y sin controles bajo 44 px.
 - `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. En móvil comprueba que la barra de cobro queda anclada abajo, que el botón de escritorio no está visible y que ningún control baja de 44 px. Borra las ventas y restaura el stock del seed.
@@ -401,29 +425,33 @@ Validaciones vigentes al completar F8.1:
 - Comprobación real de `adjust_stock` sobre PostgREST: el ajuste devuelve el nuevo stock, la vista y el movimiento quedan consistentes, delta cero y motivo vacío responden `400` con su mensaje, el `PATCH` directo de `stock` responde `403` y el de `price` sigue funcionando.
 - El build solo muestra avisos `DEP0155` de dependencias de Node; no son errores de la aplicación.
 
-## Próximo trabajo: Fase 9 · Cierre
+## Próximo trabajo: X9.2
 
-Las ocho fases de producto están terminadas. Queda la Fase 9, que son cuatro
-tareas de cierre y ninguna añade pantallas nuevas:
+El proyecto ya tiene 17 flujos E2E, pero cada uno prueba una vista. El plan pide
+además dos que hoy no existen:
 
-- **X9.1 · Estados vacíos y errores.** Buena parte ya existe —cada lista tiene su
-  mensaje de vacío y los errores de RPC salen por Toast—, así que lo pendiente es
-  revisarlo vista por vista y añadir la **pantalla de sesión expirada**, que hoy
-  no existe.
-- **X9.2 · Pruebas E2E.** El proyecto ya tiene 15 flujos; el plan pide además un
-  recorrido completo encadenado (registro → negocio → venta → cotización a fiado
-  → abono total → recibir compra → navegar a un mes anterior) y un test de
-  aislamiento entre dos negocios del mismo usuario.
-- **X9.3 · Despliegue.** Es la primera tarea que sale del entorno local: proyecto
-  Supabase de producción, migraciones por CI, Nuxt en Vercel y backups. **Exige
-  decisiones y credenciales del usuario**; no empezarla sin hablarlo.
-- **X9.4 · Observabilidad.** Logs de Edge Functions, Sentry o similar en el
-  frontend y una consulta guardada de errores de RPC. Añadir Sentry es una
-  dependencia nueva: preguntar antes.
+- Un **recorrido completo encadenado**: registro → crear negocio → venta →
+  cotización a fiado → abono total → recibir compra → navegar a un mes anterior.
+  Sobre un negocio recién creado, no sobre el demo, para que no dependa del seed.
+- Un **test de aislamiento entre dos negocios del mismo usuario**: lo que se
+  registra en uno no puede verse desde el otro. `business-switcher` ya roza esto
+  con el Inventario; aquí toca cubrir venta, fiado, gasto y cotización.
 
-Pendiente transversal: `void_sale` sigue sin interfaz. Anular una venta no está
-en ninguna tarea del plan; decidir con el usuario si entra en X9.1 o se queda
-fuera.
+Después quedan **X9.3 · Despliegue** y **X9.4 · Observabilidad**, y las dos
+necesitan hablarse antes: la primera sale del entorno local y exige credenciales
+del usuario; la segunda añade una dependencia nueva (Sentry o similar).
+
+Pendiente transversal: `void_sale` sigue sin interfaz. Anular una venta no
+aparece en ninguna tarea del plan; decidir con el usuario si se añade o se deja
+fuera antes de cerrar la Fase 9.
+
+## Nota de operación
+
+Si una prueba E2E se interrumpe a mitad puede dejar una venta a crédito del
+negocio demo ya abonada; a partir de ahí la limpieza de cualquier otra prueba
+falla con «La operación dejaría la deuda del cliente en negativo», porque el
+disparador impide borrar la venta sin borrar antes el abono. La salida es
+`npm run db:reset`.
 
 ## Fuentes de diseño disponibles
 
