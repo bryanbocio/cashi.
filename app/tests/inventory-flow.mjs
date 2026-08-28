@@ -110,16 +110,21 @@ try {
   await page.goto(`${baseUrl}/inventario`, { waitUntil: 'networkidle' })
   const count = page.locator('[data-testid="inventory-count"]')
   const inventoryTotal = page.locator('[data-testid="inventory-total-value"]')
+  // El total se lee de la base, no se fija a mano: el negocio demo puede tener
+  // ventas del usuario y la prueba debe seguir valiendo igual.
+  const expectedTotal = Number(psql(`select coalesce(sum(cost * stock), 0)
+    from public.product where business_id = '${demoBusinessId}' and active;`))
+  const money = amount => new Intl.NumberFormat('es-CO').format(amount)
 
   // El seed trae 9 productos y el fixture suma uno más.
   await waitForText(count, '10 productos', 'Conteo inicial del inventario')
-  await waitForText(inventoryTotal, '1.930.500', 'Valor total inicial del inventario')
+  await waitForText(inventoryTotal, money(expectedTotal), 'Valor total inicial del inventario')
   await page.locator(`[data-testid="row-${sku}"]`).waitFor()
 
   // Buscador: reduce la lista a un solo producto.
   await page.locator('#inventory-search').fill(sku)
   await waitForText(count, '1 producto', 'Conteo tras buscar por SKU')
-  await waitForText(inventoryTotal, '1.930.500', 'El total no cambia con el buscador')
+  await waitForText(inventoryTotal, money(expectedTotal), 'El total no cambia con el buscador')
   await page.locator('#inventory-search').fill('')
   await waitForText(count, '10 productos', 'Conteo tras limpiar la búsqueda')
 
@@ -145,8 +150,17 @@ try {
   await page.locator('#panel-price').blur()
   await waitForText(page.locator('[data-testid="panel-margin"]'), '50 %', 'Margen recalculado en vivo')
 
+  // El nombre también se edita desde el panel.
+  await page.locator('#panel-name').fill('Producto renombrado')
+
   await page.locator('[data-testid="panel-save"]').click()
   await page.getByText('El producto fue actualizado.').waitFor()
+
+  const renamed = psql(`select name, price from public.product where sku = '${sku}';`)
+  if (renamed !== 'Producto renombrado|20000') {
+    throw new Error(`El panel no guardó nombre y precio juntos: ${renamed}`)
+  }
+  await waitForText(page.locator(`[data-testid="row-${sku}"]`), 'Producto renombrado', 'Nombre actualizado en la tabla')
 
   // Ajuste de existencias: el stock solo cambia por adjust_stock.
   await page.locator('#panel-delta').fill('10')
@@ -154,7 +168,8 @@ try {
   await page.locator('[data-testid="panel-adjust"]').click()
   await page.getByText('Las existencias fueron ajustadas.').waitFor()
   await waitForText(page.locator('[data-testid="panel-stock"]'), '12', 'Stock tras el ajuste')
-  await waitForText(inventoryTotal, '2.030.500', 'Valor total tras ajustar existencias')
+  // El ajuste suma 10 unidades del producto de prueba, que cuesta 10.000.
+  await waitForText(inventoryTotal, money(expectedTotal + 100000), 'Valor total tras ajustar existencias')
 
   await page.keyboard.press('Escape')
   await page.locator('[data-testid="product-panel"]').waitFor({ state: 'hidden' })

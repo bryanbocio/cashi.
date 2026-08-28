@@ -162,6 +162,18 @@ try {
   await page.locator('[data-testid="product-create-submit"]').click()
   await waitForText(page.locator('[data-testid="inventory-count"]'), '1 producto', 'Inventario tras crear el producto')
 
+  // El nombre se corrige desde el panel, sin tocar el resto del producto.
+  await page.locator(`[data-testid="row-${sku}"]`).click()
+  await page.locator('[data-testid="product-panel"]').waitFor()
+  await page.locator('#panel-name').fill('Producto del recorrido corregido')
+  await page.locator('[data-testid="panel-save"]').click()
+  await page.getByText('El producto fue actualizado.').waitFor()
+  const renamed = psql(`select name, cost, price, stock from public.product where business_id = '${businessId}';`)
+  if (renamed !== 'Producto del recorrido corregido|6000|10000|10') {
+    throw new Error(`Renombrar cambió algo más que el nombre: ${renamed}`)
+  }
+  await page.keyboard.press('Escape')
+
   // --- 3. Venta de contado ---
   await page.goto(`${baseUrl}/caja`, { waitUntil: 'networkidle' })
   await page.locator('[data-testid="caja-search"]').fill(sku)

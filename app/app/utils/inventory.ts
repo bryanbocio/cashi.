@@ -91,3 +91,41 @@ export const CSV_TEMPLATE = [
   'sku,nombre,categoria,proveedor,costo,precio,stock,stock_minimo',
   'PER-100,Perfume de ejemplo 50 ml,Perfumería,Mi Proveedor,48000,79000,10,4',
 ].join('\n') + '\n'
+
+/**
+ * Prefijo de SKU a partir del nombre del producto.
+ *
+ * Tres letras sin tildes ni signos, tomadas de las primeras palabras: «Perfume
+ * Aurora 50 ml» da `PER` y «Té verde» da `TEV`. Es la misma nomenclatura que
+ * usa el seed, para que un catálogo escrito a mano y otro generado se lean
+ * igual.
+ */
+export function skuPrefixFromName(name: string) {
+  const letters = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .join('')
+
+  if (!letters) return 'PRD'
+  return letters.slice(0, 3).padEnd(3, 'X')
+}
+
+/** `PER` + 7 → `PER-007`. Cuatro dígitos solo si el catálogo los necesita. */
+export function buildSku(prefix: string, sequence: number) {
+  return `${prefix}-${String(sequence).padStart(3, '0')}`
+}
+
+/** Siguiente número libre del prefijo, mirando los SKU que ya existen. */
+export function nextSkuSequence(existing: string[], prefix: string) {
+  // El patrón se arma con plantilla, así que la barra del `\d` va escapada.
+  const pattern = new RegExp(`^${prefix}-(\\d+)$`, 'i')
+  const used = existing
+    .map(sku => pattern.exec(sku.trim())?.[1])
+    .filter((value): value is string => Boolean(value))
+    .map(Number)
+  return used.length ? Math.max(...used) + 1 : 1
+}

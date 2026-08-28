@@ -40,9 +40,9 @@ function psql(query) {
 function cleanup() {
   psql(`
     delete from public.stock_movement where product_id in (
-      select id from public.product where sku in ('${manualSku}', '${importedSku}')
+      select id from public.product where sku in ('${manualSku}', '${importedSku}', 'PER-003')
     );
-    delete from public.product where sku in ('${manualSku}', '${importedSku}');
+    delete from public.product where sku in ('${manualSku}', '${importedSku}', 'PER-003');
     delete from public.category where business_id = '${demoBusinessId}' and name = '${categoryName}';
     delete from public.supplier where business_id = '${demoBusinessId}' and name = '${supplierName}';
   `)
@@ -132,6 +132,36 @@ try {
     throw new Error(`El alta no guardó lo esperado: ${createdRow}`)
   }
 
+  // Sin SKU se genera a partir del nombre, y la categoría elegida de la lista
+  // se guarda por su nombre, no por su id.
+  await page.locator('[data-testid="open-create"]').click()
+  await page.locator('#product-name').fill('Perfume generado')
+  // En un select editable el desplegable se abre con su flecha, no con el campo.
+  await page.locator('#product-category .p-select-dropdown').click()
+  await page.getByRole('option', { name: 'Perfumería', exact: true }).click()
+  await page.locator('#product-cost').fill('3000')
+  await page.locator('#product-price').fill('9000')
+  await page.locator('#product-stock').fill('4')
+  await page.locator('#product-min-stock').fill('1')
+  await page.locator('[data-testid="product-create-submit"]').click()
+  await waitForText(count, '11 productos', 'Conteo tras el alta sin SKU')
+
+  const generated = psql(`
+    select p.sku, c.name
+    from public.product p left join public.category c on c.id = p.category_id
+    where p.business_id = '${demoBusinessId}' and p.name = 'Perfume generado';
+  `)
+  // El seed ya tiene PER-001 y PER-002, así que el siguiente libre es PER-003.
+  if (generated !== 'PER-003|Perfumería') {
+    throw new Error(`El SKU automático o la categoría no son los esperados: ${generated}`)
+  }
+  // La tabla debe mostrar el nombre de la categoría, nunca su id.
+  await page.locator('#inventory-search').fill('PER-003')
+  await waitForText(count, '1 producto', 'Inventario filtrado por el SKU generado')
+  await waitForText(page.locator('table'), 'Perfumería', 'Categoría en la tabla')
+  await page.locator('#inventory-search').fill('')
+  await waitForText(count, '11 productos', 'Inventario sin filtro')
+
   // El SKU repetido se avisa en el formulario, no con un error crudo.
   await page.locator('[data-testid="open-create"]').click()
   await page.locator('#product-sku').fill(manualSku)
@@ -152,7 +182,7 @@ try {
   await page.getByText('3', { exact: true }).first().waitFor()
 
   await page.getByRole('button', { name: 'Cerrar' }).click()
-  await waitForText(count, '11 productos', 'Conteo tras importar')
+  await waitForText(count, '12 productos', 'Conteo tras importar')
 
   const importedRow = psql(`
     select p.cost, p.price, p.stock, c.name, s.name

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { Database } from '~/types/database'
+import { buildSku, nextSkuSequence, skuPrefixFromName } from '~/utils/inventory'
 
 type Option = { label: string; value: string }
 
@@ -13,7 +14,8 @@ const businessStore = useBusinessStore()
 const { execute, notifyError } = useSupabaseRequest()
 
 const schema = z.object({
-  sku: z.string().trim().min(1, 'El SKU es obligatorio.').max(40, 'Usa 40 caracteres o menos.'),
+  // El SKU es opcional: si se deja vacío se genera a partir del nombre.
+  sku: z.string().trim().max(40, 'Usa 40 caracteres o menos.'),
   name: z.string().trim().min(2, 'Escribe al menos 2 caracteres.').max(120, 'Usa 120 caracteres o menos.'),
   cost: z.number({ error: 'Escribe un costo.' }).int('Usa un valor entero.').min(0, 'El costo no puede ser negativo.'),
   price: z.number({ error: 'Escribe un precio.' }).int('Usa un valor entero.').min(0, 'El precio no puede ser negativo.'),
@@ -31,6 +33,35 @@ watch(open, value => {
   Object.assign(form, emptyForm())
   Object.keys(errors).forEach(key => { errors[key] = undefined })
 })
+
+/**
+ * Los selectores editables trabajan **con el nombre**, nunca con el id.
+ *
+ * Con `option-value` apuntando al id, elegir una categoría existente metía el
+ * UUID en el campo y `resolveFacet` lo daba por un nombre nuevo: acababa
+ * creando una categoría llamada como el UUID. Igualando etiqueta y valor, tanto
+ * elegir como escribir devuelven un nombre.
+ */
+const categoryNames = computed(() => props.categories.map(option => ({ label: option.label, value: option.label })))
+const supplierNames = computed(() => props.suppliers.map(option => ({ label: option.label, value: option.label })))
+
+/** Sugerencia visible mientras se escribe el nombre. */
+const suggestedSku = computed(() => (form.name.trim() ? buildSku(skuPrefixFromName(form.name), 1) : ''))
+
+/**
+ * SKU libre para el prefijo del nombre. Se consulta al guardar, no al escribir,
+ * para no lanzar una petición por tecla; el índice único sigue siendo la última
+ * defensa si dos altas coinciden.
+ */
+async function generateSku(businessId: string, name: string) {
+  const prefix = skuPrefixFromName(name)
+  const rows = await execute(client
+    .from('product')
+    .select('sku')
+    .eq('business_id', businessId)
+    .ilike('sku', `${prefix}-%`))
+  return buildSku(prefix, nextSkuSequence((rows ?? []).map(row => row.sku), prefix))
+}
 
 /** Se acepta un nombre nuevo: el catálogo lo define el usuario y hoy no hay otra
  *  pantalla para crear categorías o proveedores. */
@@ -71,10 +102,11 @@ async function submit() {
   try {
     const categoryId = await resolveFacet('category', form.category, props.categories)
     const supplierId = await resolveFacet('supplier', form.supplier, props.suppliers)
+    const sku = result.data.sku || await generateSku(businessId, result.data.name)
 
     const { error } = await client.from('product').insert({
       business_id: businessId,
-      sku: result.data.sku,
+      sku,
       name: result.data.name,
       category_id: categoryId,
       supplier_id: supplierId,
@@ -108,16 +140,22 @@ async function submit() {
 <template>
   <UiModal v-model="open" title="Nuevo producto">
     <form id="product-create-form" class="grid grid-cols-2 gap-4 max-[560px]:grid-cols-1" novalidate @submit.prevent="submit">
-      <AuthField id="product-sku" v-model="form.sku" label="SKU" :error="errors.sku" :disabled="saving" />
       <AuthField id="product-name" v-model="form.name" label="Nombre" :error="errors.name" :disabled="saving" />
 
       <div>
+        <label for="product-sku" class="mb-1.5 block text-[11px] font-semibold text-ink">SKU <span class="font-normal text-subtle">(opcional)</span></label>
+        <PrimeInputText id="product-sku" v-model="form.sku" :placeholder="suggestedSku || 'Se genera solo'" :invalid="Boolean(errors.sku)" :disabled="saving" autocomplete="off" fluid />
+        <p v-if="errors.sku" class="mt-1.5 text-[11px] text-negative" role="alert">{{ errors.sku }}</p>
+        <p v-else-if="suggestedSku" class="mt-1.5 text-[11px] text-muted">Si lo dejas vacío se usará <strong class="font-mono">{{ suggestedSku }}</strong> o el siguiente libre.</p>
+      </div>
+
+      <div>
         <label for="product-category" class="mb-1.5 block text-[11px] font-semibold text-ink">Categoría</label>
-        <PrimeSelect id="product-category" v-model="form.category" :options="categories" option-label="label" option-value="value" editable placeholder="Elige o escribe una" :disabled="saving" fluid />
+        <PrimeSelect id="product-category" v-model="form.category" :options="categoryNames" option-label="label" option-value="value" editable placeholder="Elige o escribe una" :disabled="saving" fluid />
       </div>
       <div>
         <label for="product-supplier" class="mb-1.5 block text-[11px] font-semibold text-ink">Proveedor</label>
-        <PrimeSelect id="product-supplier" v-model="form.supplier" :options="suppliers" option-label="label" option-value="value" editable placeholder="Elige o escribe uno" :disabled="saving" fluid />
+        <PrimeSelect id="product-supplier" v-model="form.supplier" :options="supplierNames" option-label="label" option-value="value" editable placeholder="Elige o escribe uno" :disabled="saving" fluid />
       </div>
 
       <div>
