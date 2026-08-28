@@ -45,7 +45,7 @@ const toneClass = {
               <!-- El producto borrado conserva su nombre congelado pero ya no tiene SKU. -->
               <span class="block truncate text-[10px] text-subtle">{{ product.sku ?? 'Producto eliminado' }} · {{ product.qty }} {{ product.qty === 1 ? 'unidad' : 'unidades' }}</span>
             </span>
-            <span class="shrink-0 text-right font-mono text-[12px] font-medium" :class="toneClass[marginTone(product.marginPct)]">
+            <span class="shrink-0 text-right font-mono text-[12px] font-medium" :class="toneClass[product.grossProfit < 0 ? 'negative' : marginTone(product.marginPct)]">
               {{ formatMoney(product.grossProfit) }} · {{ formatPercent(product.marginPct) }}
             </span>
           </li>

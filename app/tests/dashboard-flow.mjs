@@ -256,6 +256,16 @@ try {
   await page.locator('[data-testid="month-nav"]').waitFor()
   await waitForLabel(page.locator('[data-testid="period-label"]'), monthLabel(0), 'Etiqueta del mes actual')
   await waitForMoney(page.locator('[data-testid="kpi-revenue"]'), monthRevenue(0), 'Ventas del mes actual')
+
+  // Con el seed el mes cierra en pérdida: una cifra negativa tiene que
+  // reconocerse por el color, no solo por el guion.
+  const netProfitMonth = Number(psqlValue(`select set_config('request.jwt.claim.sub', '${demoUserId}', false);
+    select (public.metrics_summary('${demoBusinessId}', 'month', 0) ->> 'net_profit')::bigint;`))
+  if (netProfitMonth >= 0) throw new Error(`El seed debía cerrar el mes en pérdida y dio ${netProfitMonth}.`)
+  const netProfitClass = await page.locator('[data-testid="kpi-net-profit"]').getAttribute('class')
+  if (!netProfitClass?.includes('f2a780')) {
+    throw new Error(`La ganancia neta negativa no se distingue por color: «${netProfitClass}».`)
+  }
   await waitForLabel(page.locator('[data-testid="top-products-period"]'), monthLabel(0), 'Periodo en el título de rentabilidad')
   if (!await page.locator('[data-testid="month-next"]').isDisabled()) {
     throw new Error('La flecha hacia adelante quedó activa en el mes actual.')

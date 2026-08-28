@@ -54,7 +54,8 @@ const toneClass = {
     <article class="px-3.75 py-3.25">
       <p class="m-0 font-mono text-[9.5px] font-medium tracking-[.06em] text-subtle uppercase">Ganancia neta</p>
       <PrimeSkeleton v-if="loading" width="6rem" height="1.5rem" class="mt-1" />
-      <strong v-else class="mt-1 block font-display text-[21px] leading-tight tracking-[-.03em]" data-testid="report-net-profit">{{ formatMoney(summary.netProfit) }}</strong>
+      <!-- El signo de Costo y Gastos es de resta; este sí dice que se perdió. -->
+      <strong v-else class="mt-1 block font-display text-[21px] leading-tight tracking-[-.03em]" :class="summary.netProfit < 0 ? 'text-negative' : ''" data-testid="report-net-profit">{{ formatMoney(summary.netProfit) }}</strong>
       <span class="mt-0.5 block text-[11.5px]" :class="toneClass[changeTone(summary.netProfitChange)]">Margen neto {{ formatPercent(summary.netMargin) }} · {{ changeLabel(summary.netProfitChange, summary.range.previousLabel) }}</span>
     </article>
   </div>

@@ -18,6 +18,19 @@ function dateLabel(row: SaleHistoryRow, timezone: string) {
   return `${formatCalendarDate(instantToBusinessDate(row.soldAt, timezone))} ${formatSaleTime(row.soldAt, timezone)}`
 }
 
+/** El color distingue la ganancia de la pérdida; la anulada no cuenta. */
+function profitClass(row: SaleHistoryRow) {
+  if (row.status === 'VOID') return 'text-subtle line-through'
+  return row.grossProfit < 0 ? 'text-negative' : 'text-positive'
+}
+
+/** En móvil no hay columna que colorear: lo dice la palabra. */
+function profitLabel(row: SaleHistoryRow) {
+  return row.grossProfit < 0
+    ? `pierde ${formatMoney(-row.grossProfit)}`
+    : `gana ${formatMoney(row.grossProfit)}`
+}
+
 /** `v_sale_detail` no trae los nombres de las líneas, solo cuántas y cuántos. */
 function detailLabel(row: SaleHistoryRow) {
   const items = `${row.items} ${row.items === 1 ? 'artículo' : 'artículos'}`
@@ -80,11 +93,11 @@ function detailLabel(row: SaleHistoryRow) {
               <span class="truncate text-muted max-[1120px]:hidden">{{ row.customerName ?? 'Mostrador' }}</span>
               <span class="truncate text-muted max-[1120px]:hidden">{{ SALE_METHOD_LABELS[row.paymentMethod] }}</span>
               <span class="text-right font-mono max-[1120px]:hidden" :class="row.status === 'VOID' ? 'text-subtle line-through' : ''">{{ formatMoney(row.total) }}</span>
-              <span class="text-right font-mono max-[1120px]:hidden" :class="row.status === 'VOID' ? 'text-subtle line-through' : 'text-positive'">{{ formatMoney(row.grossProfit) }}</span>
+              <span class="text-right font-mono max-[1120px]:hidden" :class="profitClass(row)">{{ formatMoney(row.grossProfit) }}</span>
 
               <!-- Bajo 1120 px las seis columnas no caben: la venta se lee como una línea de contexto. -->
               <span class="hidden text-[11.5px] text-subtle max-[1120px]:block">
-                {{ dateLabel(row, timezone) }} · {{ detailLabel(row) }} · {{ row.customerName ?? 'Mostrador' }} · {{ SALE_METHOD_LABELS[row.paymentMethod].toLowerCase() }} · gana {{ formatMoney(row.grossProfit) }}
+                {{ dateLabel(row, timezone) }} · {{ detailLabel(row) }} · {{ row.customerName ?? 'Mostrador' }} · {{ SALE_METHOD_LABELS[row.paymentMethod].toLowerCase() }} · {{ profitLabel(row) }}
               </span>
             </button>
           </li>

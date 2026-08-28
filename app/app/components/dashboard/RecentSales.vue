@@ -57,7 +57,7 @@ function detailLabel(sale: RecentSale) {
                 </span>
               </span>
               <span class="text-right font-mono">{{ formatMoney(sale.total) }}</span>
-              <span class="text-right font-mono text-positive max-[400px]:hidden">{{ formatMoney(sale.grossProfit) }}</span>
+              <span class="text-right font-mono max-[400px]:hidden" :class="sale.grossProfit < 0 ? 'text-negative' : 'text-positive'">{{ formatMoney(sale.grossProfit) }}</span>
             </button>
           </li>
         </ul>

@@ -58,7 +58,8 @@ const darkToneClass = {
     <article class="rounded-[8px] border border-ink bg-ink px-3 py-2.75">
       <p class="m-0 font-mono text-[9.5px] font-medium tracking-[.06em] text-white/60 uppercase">Ganancia neta</p>
       <PrimeSkeleton v-if="loading" width="6rem" height="1.5rem" class="mt-1.25" />
-      <strong v-else class="mt-1.25 block font-display text-[22px] leading-[1.15] tracking-[-.03em] text-white" data-testid="kpi-net-profit">{{ formatMoney(summary.netProfit) }}</strong>
+      <!-- Una cifra negativa se reconoce por el color, no solo por el guion. -->
+      <strong v-else class="mt-1.25 block font-display text-[22px] leading-[1.15] tracking-[-.03em]" :class="summary.netProfit < 0 ? 'text-[#f2a780]' : 'text-white'" data-testid="kpi-net-profit">{{ formatMoney(summary.netProfit) }}</strong>
       <span class="mt-1 block text-[10.5px]" :class="darkToneClass[changeTone(summary.netProfitChange)]">{{ formatPercent(summary.netMargin) }} neto · {{ changeLabel(summary.netProfitChange, summary.range.previousLabel) }}</span>
     </article>
 
