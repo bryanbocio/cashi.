@@ -225,7 +225,7 @@ const canConvertToCredit = computed(() => view.value?.canConvert && view.value.c
                 <span>Subtotal</span><span style="font-family:'IBM Plex Mono',ui-monospace,monospace">{{ formatMoney(view.subtotal) }}</span>
               </div>
               <div v-if="view.discount > 0" style="display:flex;justify-content:space-between;font:400 12.5px 'IBM Plex Sans',system-ui,sans-serif;color:#c2410c">
-                <span>Descuento</span><span style="font-family:'IBM Plex Mono',ui-monospace,monospace">− {{ formatMoney(view.discount) }}</span>
+                <span>Descuento</span><span style="font-family:'IBM Plex Mono',ui-monospace,monospace">{{ formatMoney(-view.discount) }}</span>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid rgba(25,24,23,.12);padding-top:8px">
                 <span style="font:600 13px 'Space Grotesk',system-ui,sans-serif">Total</span>

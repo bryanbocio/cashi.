@@ -144,7 +144,9 @@ export function buildDocumentModel(business: DocumentBusiness, source: DocumentS
   ]
   // El descuento solo se imprime cuando existe: una línea en cero confunde.
   if (source.discount > 0) {
-    totals.push({ label: 'Descuento', value: `− ${formatDocumentMoney(source.discount, business.currency)}`, emphasis: false })
+    // El signo lo pone el propio importe: así el descuento se lee igual que
+    // cualquier otra cifra negativa del documento.
+    totals.push({ label: 'Descuento', value: formatDocumentMoney(-source.discount, business.currency), emphasis: false })
   }
   totals.push({ label: 'Total', value: formatDocumentMoney(source.total, business.currency), emphasis: true })
 

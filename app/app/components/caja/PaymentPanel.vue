@@ -94,7 +94,7 @@ const isCredit = computed(() => cart.paymentMethod === 'CREDIT')
       </div>
       <div v-if="cart.discount" class="flex justify-between gap-3">
         <dt class="text-muted">Descuento</dt>
-        <dd class="m-0 font-mono text-negative">− {{ formatMoney(cart.discount) }}</dd>
+        <dd class="m-0 font-mono text-negative">{{ formatMoney(-cart.discount) }}</dd>
       </div>
       <div class="flex justify-between gap-3">
         <dt class="text-muted">Ganancia estimada</dt>

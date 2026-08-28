@@ -137,7 +137,7 @@ check(saleModel.fileName === 'factura-fac-00007.pdf', 'el nombre del archivo usa
 check(saleModel.meta[0].value === 'Mostrador', 'una venta sin cliente se imprime como Mostrador')
 check(saleModel.lines[0].lineTotal === 29000, 'el importe de la línea es cantidad × precio')
 check(saleModel.totals.length === 3, 'con descuento se imprimen subtotal, descuento y total')
-check(saleModel.totals[1].value.startsWith('−'), 'el descuento se imprime en negativo', saleModel.totals[1].value)
+check(saleModel.totals[1].value === formatDocumentMoney(-4000, 'COP'), 'el descuento se imprime en negativo', saleModel.totals[1].value)
 check(saleModel.totals[2].value === formatDocumentMoney(25000, 'COP'), 'el total impreso es el del documento')
 check(saleModel.stamp === '', 'una venta confirmada no lleva sello')
 check(saleModel.note.includes('Gracias'), 'la venta de contado agradece la compra', saleModel.note)

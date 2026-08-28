@@ -14,7 +14,8 @@ const costRatio = computed(() => (props.summary.revenue ? 100 - props.summary.gr
 
 function changeLabel(value: number, previousLabel: string) {
   if (!value) return `Igual que ${previousLabel || 'el periodo anterior'}`
-  return `${value > 0 ? '+' : '−'}${formatPercent(Math.abs(value))} vs ${previousLabel}`
+  // El signo negativo lo pone `Intl`; solo hay que añadir el `+`.
+  return `${value > 0 ? '+' : ''}${formatPercent(value)} vs ${previousLabel}`
 }
 
 const toneClass = {
@@ -39,14 +40,14 @@ const toneClass = {
     <article class="border-r border-black/8 px-3.75 py-3.25 max-[760px]:border-b max-[760px]:border-r-0">
       <p class="m-0 font-mono text-[9.5px] font-medium tracking-[.06em] text-subtle uppercase">Costo de venta</p>
       <PrimeSkeleton v-if="loading" width="6rem" height="1.5rem" class="mt-1" />
-      <strong v-else class="mt-1 block font-display text-[21px] leading-tight tracking-[-.03em]" data-testid="report-cost">− {{ formatMoney(costOfSales) }}</strong>
+      <strong v-else class="mt-1 block font-display text-[21px] leading-tight tracking-[-.03em]" data-testid="report-cost">{{ formatMoney(-costOfSales) }}</strong>
       <span class="mt-0.5 block text-[11.5px] text-muted">{{ formatPercent(costRatio) }} de los ingresos</span>
     </article>
 
     <article class="border-r border-black/8 px-3.75 py-3.25">
       <p class="m-0 font-mono text-[9.5px] font-medium tracking-[.06em] text-subtle uppercase">Gastos</p>
       <PrimeSkeleton v-if="loading" width="6rem" height="1.5rem" class="mt-1" />
-      <strong v-else class="mt-1 block font-display text-[21px] leading-tight tracking-[-.03em]" data-testid="report-expenses">− {{ formatMoney(summary.expenses) }}</strong>
+      <strong v-else class="mt-1 block font-display text-[21px] leading-tight tracking-[-.03em]" data-testid="report-expenses">{{ formatMoney(-summary.expenses) }}</strong>
       <span class="mt-0.5 block text-[11.5px]" :class="toneClass[changeTone(summary.expenseRatioPp, false)]">{{ formatPercent(summary.expenseRatio) }} de los ingresos</span>
     </article>
 

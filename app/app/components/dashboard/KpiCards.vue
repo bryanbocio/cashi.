@@ -9,13 +9,14 @@ const { formatMoney, formatNumber, formatPercent } = useMoney()
 /** Variación en porcentaje sobre el periodo anterior. */
 function changeLabel(value: number, previousLabel: string) {
   if (!value) return `Igual que ${previousLabel || 'el periodo anterior'}`
-  return `${value > 0 ? '+' : '−'}${formatPercent(Math.abs(value))} vs ${previousLabel}`
+  // El signo negativo lo pone `Intl`; solo hay que añadir el `+`.
+  return `${value > 0 ? '+' : ''}${formatPercent(value)} vs ${previousLabel}`
 }
 
 /** Variación de un margen o proporción: se expresa en puntos porcentuales. */
 function pointsLabel(value: number, previousLabel: string) {
   if (!value) return `Sin cambio vs ${previousLabel || 'el periodo anterior'}`
-  return `${value > 0 ? '+' : '−'}${formatNumber(Math.abs(value))} pp vs ${previousLabel}`
+  return `${value > 0 ? '+' : ''}${formatNumber(value)} pp vs ${previousLabel}`
 }
 
 const toneClass = {
