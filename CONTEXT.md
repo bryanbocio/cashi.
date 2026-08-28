@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar X9.2. **Las Fases 0 a 8 están terminadas** y la Fase 9 de cierre está empezada. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
+Actualizado: 27 de agosto de 2026, después de completar X9.2 y de cerrar los dos huecos de producto que quedaban. **Las Fases 0 a 8 están terminadas** y la Fase 9 de cierre está empezada. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
 
 ## Preferencias del usuario
 
@@ -64,6 +64,7 @@ Completado y versionado:
 | F8.1 | `6d5c87d` | Visor de documentos con descarga de PDF e imagen y conversión de cotizaciones |
 | X9.1 | `2f956af` | Pantalla de sesión expirada y repaso de estados vacíos |
 | X9.2 | `47943ec` | Recorrido completo sobre un negocio nuevo y aislamiento entre negocios |
+| — | `41d2300` | Alta de clientes desde Caja y anulación de ventas desde el visor |
 
 Las tareas pendientes del `PLAN.md` son **X9.3 · Despliegue** y **X9.4 · Observabilidad**, y las dos necesitan hablarse con el usuario antes de empezar.
 
@@ -407,10 +408,10 @@ Validaciones vigentes al completar X9.2:
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
 - `npm run app:test:reports`: cuatro cifras del mes, ganancia por categoría ordenada, mejor y peor producto, historial del periodo, aviso documental, CSV descargado y verificado línea por línea, cambio a Hoy y versión móvil accesible.
-- `npm run app:test:journey`: recorrido completo sobre un negocio **recién registrado**, no sobre el seed: registro con confirmación por Mailpit, creación del negocio, alta de producto por debajo del mínimo, venta de contado, cotización con cliente convertida a fiado, abono total, orden sugerida creada y recibida, y comprobación de que el mes en curso cuadra en 30.000 mientras el anterior está vacío. Cierra comprobando en PostgreSQL 2 ventas, stock 24, 10.000 abonados y la orden `RECEIVED`. Borra su negocio y su usuario.
+- `npm run app:test:journey`: recorrido completo sobre un negocio **recién registrado**, no sobre el seed: registro con confirmación por Mailpit, creación del negocio, alta de producto por debajo del mínimo, venta de contado, alta de cliente desde la propia Caja con el carrito intacto, cotización con ese cliente convertida a fiado, abono total, orden sugerida creada y recibida, y comprobación de que el mes en curso cuadra en 30.000 mientras el anterior está vacío. Cierra comprobando en PostgreSQL 2 ventas, stock 24, 10.000 abonados y la orden `RECEIVED`. Borra su negocio y su usuario.
 - `npm run app:test:business-isolation`: dos negocios **del mismo usuario**, donde la RLS no protege nada y lo único que separa los datos es el filtro por negocio activo. Comprueba en las dos direcciones que inventario, buscador de Caja, gastos, cotizaciones, fiados, Reportes y Resumen no se mezclan, y confirma el reparto en PostgreSQL. Borra solo el negocio que creó.
 - `npm run app:test:session-expired`: primera visita sin aviso, recarga con la sesión muerta con aviso y destino conservado, vuelta al destino tras entrar, aviso una sola vez, cierre de sesión voluntario sin aviso y caída de la sesión con la pestaña abierta. No deja fixtures.
-- `npm run app:test:documents`: abre el documento de una venta desde el Resumen, comprueba encabezado, líneas, total y nota, descarga el PDF real de la Edge Function y la imagen PNG generada en el cliente, cierra con Escape, comprueba que cambiar de sección lo cierra, abre una cotización vencida con su sello y sin conversiones, y convierte una vigente a venta comprobando el resultado en PostgreSQL. En móvil verifica que no desborda y que sus botones llegan a 44 px. No deja fixtures.
+- `npm run app:test:documents`: abre el documento de una venta desde el Resumen, comprueba encabezado, líneas, total y nota, descarga el PDF real de la Edge Function y la imagen PNG generada en el cliente, cierra con Escape, comprueba que cambiar de sección lo cierra, abre una cotización vencida con su sello y sin conversiones, convierte una vigente a venta comprobando el resultado en PostgreSQL, y **anula una venta** comprobando que vuelve el stock, que el historial la conserva marcada sin contarla y que ya no se puede anular otra vez. En móvil verifica que no desborda y que sus botones llegan a 44 px. No deja fixtures.
 - `npm run app:test:dashboard`: KPIs de la venta del día, margen del 40 %, gráfica de 14 días, rentabilidad ordenada, última venta con su aviso documental, tres alertas en orden, navegación filtrada a Inventario y el selector de periodo con sus 18 meses; en móvil, dos columnas de KPI, segmentado de ancho completo, sin desbordes y sin controles bajo 44 px.
 - `npm run app:test:caja`: búsqueda por nombre y por SKU, carrito con ± y margen, descuento, rechazo del fiado sin cliente con el mensaje del backend, cobro con cliente, venta y stock comprobados en PostgreSQL, venta sin existencias con aviso, vaciar carrito y frecuentes actualizados. En móvil comprueba que la barra de cobro queda anclada abajo, que el botón de escritorio no está visible y que ningún control baja de 44 px. Borra las ventas y restaura el stock del seed.
 - `npm run app:test:credits`: resumen de $790.000, tres deudores, un vencido, abono completo de $280.000, desaparición del cliente, cartera final de $510.000, actualización del total mensual y versión móvil sin controles menores de 44 px. No deja fixtures.
@@ -442,22 +443,30 @@ Las dos tareas que quedan **no se pueden empezar en solitario**:
   en el frontend y una consulta guardada de errores de RPC. Sentry es una
   dependencia nueva y el usuario pidió revisar licencias antes de añadirlas.
 
-Además hay dos decisiones de producto pendientes, las dos anotadas arriba:
-crear clientes desde la interfaz y anular ventas con `void_sale`, que sigue sin
-consumidor.
+Ya no queda ningún backend sin interfaz ni ninguna decisión de producto
+pendiente: el alta de clientes y la anulación de ventas se cerraron en
+`41d2300`.
 
-## Hueco de producto detectado en X9.2
+## Clientes y anulación de ventas
 
-**No hay ninguna forma de crear un cliente desde la interfaz.** La app solo lee
-`customer`; ni Caja ni Fiados ni Ajustes permiten darlo de alta, y el `PLAN.md`
-no se lo asigna a ninguna tarea. En la práctica un negocio recién creado **no
-puede registrar un fiado nunca**, porque el selector de cliente de Caja siempre
-está vacío y `create_sale` rechaza el crédito sin cliente.
+Dos añadidos que el `PLAN.md` no tenía y que el usuario pidió al cerrar la Fase
+9; los dos quedaron registrados en el plan.
 
-La RLS sí permite la inserción, así que es un hueco de interfaz, no de permisos.
-`full-journey` lo esquiva insertando el cliente con `psql` y lo deja anotado en
-el propio código. Conviene decidir con el usuario si entra antes de cerrar la
-Fase 9.
+- **Alta de cliente desde Caja.** Junto al selector de cliente del panel de
+  cobro hay un botón «+ Nuevo cliente» que abre un modal. La decisión de diseño
+  la dio el usuario —así lo hace Treinta— y su motivo es concreto: quien está
+  cobrando descubre allí mismo que el cliente no existe, y mandarlo a otra
+  pantalla le costaría el carrito. Al guardar, el cliente **queda seleccionado**
+  y el carrito sigue intacto; `full-journey` comprueba las dos cosas.
+  Antes de esto un negocio recién creado no podía registrar un fiado nunca.
+- **Anular una venta.** `void_sale` ya existía desde S3.2 y era el único backend
+  sin interfaz. El visor de documentos ofrece «Anular venta» solo en ventas
+  `CONFIRMED`, con un modal que avisa de que devuelve las existencias y de que
+  no se puede deshacer. Tras anular, Resumen y Reportes se recargan.
+- **Reportes lista también las anuladas**, tachadas y con su etiqueta, y su
+  conteo separa «N ventas · M anuladas». Sin eso se podía anular y no quedaba
+  rastro visible. Las cifras del periodo siguen contando solo las confirmadas,
+  porque salen de `metrics_summary`. El CSV gana una columna **Estado**.
 
 ## Nota de operación
 
