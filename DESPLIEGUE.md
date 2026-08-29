@@ -5,6 +5,21 @@ almacenamiento; Vercel para el frontend; GitHub Actions para las migraciones.
 
 Repositorio: `git@github.com:bryanbocio/cashi..git` (rama `master`).
 
+## Estado
+
+| Pieza | Estado |
+| --- | --- |
+| Proyecto Supabase | `zfsjhbcufxheeljpkjmt`, región `ca-central-1`, Postgres 17.6 |
+| Migraciones | **24/24 aplicadas** |
+| Edge Functions | `document-pdf` y `import-products` publicadas |
+| Bucket `logos` | creado y privado |
+| RLS | 17/17 tablas, 7/7 vistas con `security_invoker` |
+| Acceso anónimo | 0 tablas y 0 vistas legibles por `anon` |
+| Datos | vacío: ningún negocio, ningún dato de demostración |
+| Auth (Site URL, redirects, SMTP) | **pendiente** |
+| Vercel | **pendiente** |
+| Secretos del CI en GitHub | **pendientes** |
+
 ## 1. Credenciales
 
 | Qué | Para qué | Dónde se guarda |

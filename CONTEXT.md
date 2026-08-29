@@ -176,7 +176,7 @@ no simula una descarga antes de que exista `document-pdf`.
 
 ## Entorno local
 
-- No hay un proyecto Supabase remoto enlazado todavía: todo está conectado al Supabase local.
+- Proyecto Supabase de producción enlazado: `zfsjhbcufxheeljpkjmt` (`ca-central-1`), con las 24 migraciones y las dos Edge Functions ya publicadas y sin datos. El entorno de trabajo diario sigue siendo el Supabase local.
 - El repositorio ya tiene remoto: `git@github.com:bryanbocio/cashi..git`, rama `master`. El nombre lleva un punto final; si se renombra en GitHub hay que actualizar `git remote set-url`.
 - `DESPLIEGUE.md` tiene el paso a paso de X9.3 y qué credencial va en cada sitio.
 - `.env` existe en la raíz, está ignorado por Git y contiene la URL y publishable key locales. No copiar claves a archivos versionados.
