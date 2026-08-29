@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "nuxt build --dotenv ../.env",
+    "build:vercel": "nuxt build",
     "dev": "nuxt dev --dotenv ../.env",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

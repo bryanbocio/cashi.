@@ -1,0 +1,51 @@
+name: Base de datos
+
+# Las migraciones y las Edge Functions se publican solas al entrar en la rama
+# principal. Nada de `db reset` ni de `seed.sql` aquí: producción no lleva datos
+# de demostración y las migraciones son aditivas, nunca se editan las aplicadas.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - '.github/workflows/supabase.yml'
+  workflow_dispatch:
+
+concurrency:
+  # Dos despliegues a la vez sobre la misma base terminarían en carrera.
+  group: supabase-produccion
+  cancel-in-progress: false
+
+env:
+  # La misma versión que se usa en local, para que un cambio de CLI no aparezca
+  # como un fallo de migración.
+  SUPABASE_CLI_VERSION: 2.115.0
+
+jobs:
+  publicar:
+    name: Migraciones y funciones
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Enlazar el proyecto
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      - name: Aplicar migraciones
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push
+
+      - name: Publicar Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
