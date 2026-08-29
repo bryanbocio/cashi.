@@ -9,7 +9,7 @@ Repositorio: `git@github.com:bryanbocio/cashi..git` (rama `master`).
 
 | Pieza | Estado |
 | --- | --- |
-| Proyecto Supabase | `zfsjhbcufxheeljpkjmt`, región `ca-central-1`, Postgres 17.6 |
+| Proyecto Supabase | `iccxvionnuoekjyawltz`, región `us-east-1` |
 | Migraciones | **24/24 aplicadas** |
 | Edge Functions | `document-pdf` y `import-products` publicadas |
 | Bucket `logos` | creado y privado |
