@@ -429,13 +429,34 @@ npm run db:types
   siendo una decisión independiente: exige `client_uuid` idempotente, cola local
   y reglas de conflicto para precio, costo, stock y sesión.
 
+## Notificaciones toast
+
+- `AppToast` reemplaza la presentación genérica de PrimeVue en toda la aplicación,
+  sin cambiar los `useToast()` existentes ni sus contratos de negocio.
+- El diseño sigue el lenguaje de Cashi como una pequeña tarjeta tipo recibo:
+  tipografía del producto, franja y sello cromático por estado, patrón punteado,
+  iconos Lucide y animación breve. Éxito, información, advertencia y error tienen
+  tonos diferenciados sin sacrificar la legibilidad del texto.
+- En pantallas menores de 760 px ocupa el ancho disponible con 12 px de margen,
+  respeta el `safe-area-inset-top`, permite cortar palabras largas y apila varios
+  avisos sin desbordar el viewport. El cierre mide 46 px para conservar un área
+  táctil real de al menos 44 px incluso con escalado fraccional del navegador.
+- Su z-index queda por encima de la interfaz operativa y por debajo del bloqueo
+  global sin conexión de la PWA. Las preferencias de movimiento reducido siguen
+  anulando sus animaciones mediante la regla global existente.
+- `app/tests/toast-flow.mjs` provoca un error real de autenticación en un viewport
+  móvil de 390 × 844 y comprueba variante, resumen, límites horizontales, ajuste
+  del texto, área táctil y cierre completo del aviso.
+
 ## Última validación
 
-Validaciones vigentes al completar PWA.1 y la mejora de F2.1:
+Validaciones vigentes al completar PWA.1 y las mejoras visuales posteriores:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
+- `npm --prefix app run test:toast`: notificación de error real en 390 × 844,
+  sin desborde, texto ajustado, cierre táctil mayor de 44 px y retirada correcta.
 - `npm run app:test:pwa`: manifest instalable, iconos requeridos, service worker
   controlando la página, shell disponible sin red, bloqueo global de operaciones
   y ausencia de caché para Supabase y documentos.
