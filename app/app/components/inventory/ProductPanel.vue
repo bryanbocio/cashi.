@@ -135,7 +135,7 @@ async function submitAdjustment() {
     drawer-id="inventory-product-panel"
   >
     <div v-if="product" class="grid gap-6" data-testid="product-panel">
-      <p class="-mt-2 font-mono text-[11px] text-subtle">{{ product.sku }}</p>
+      <p class="font-mono text-[11px] leading-4 text-subtle" data-testid="panel-sku">{{ product.sku }}</p>
 
       <section class="grid grid-cols-3 gap-2 rounded-[9px] bg-surface p-3 text-center">
         <div>

@@ -144,6 +144,13 @@ try {
   // Panel lateral: margen y valor en vivo antes de guardar.
   await page.locator(`[data-testid="row-${sku}"]`).click()
   await page.locator('[data-testid="product-panel"]').waitFor()
+  const panelSku = page.locator('[data-testid="panel-sku"]')
+  await waitForText(panelSku, sku, 'SKU visible en el panel')
+  const skuBox = await panelSku.boundingBox()
+  const panelContentBox = await page.locator('#inventory-product-panel [data-pc-section="content"]').boundingBox()
+  if (!skuBox || !panelContentBox || skuBox.y < panelContentBox.y || skuBox.y + skuBox.height > panelContentBox.y + panelContentBox.height) {
+    throw new Error(`El SKU queda recortado en el panel: SKU ${JSON.stringify(skuBox)}, contenido ${JSON.stringify(panelContentBox)}.`)
+  }
   await waitForText(page.locator('[data-testid="panel-margin"]'), '16.7 %', 'Margen inicial del panel')
 
   await page.locator('#panel-price').fill('20000')
@@ -195,6 +202,7 @@ try {
   }
   await card.click()
   await page.locator('[data-testid="product-panel"]').waitFor()
+  await waitForText(page.locator('[data-testid="panel-sku"]'), sku, 'SKU visible en el panel móvil')
   await waitForText(page.locator('[data-testid="panel-stock"]'), '12', 'Stock en la versión móvil')
 
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
