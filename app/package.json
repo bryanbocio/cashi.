@@ -29,6 +29,7 @@
     "test:reports": "node tests/reports-flow.mjs",
     "test:session-expired": "node tests/session-expired.mjs",
     "test:settings": "node tests/settings-flow.mjs",
+    "test:toast": "node tests/toast-flow.mjs",
     "test:session-business": "node tests/session-business.mjs"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
 <template>
   <VitePwaManifest />
   <NuxtRouteAnnouncer />
-  <PrimeToast position="top-right" />
+  <AppToast />
   <PwaStatus />
   <NuxtLayout>
     <NuxtPage />
