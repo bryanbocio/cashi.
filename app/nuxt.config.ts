@@ -5,7 +5,22 @@ import CashiPreset from './app/themes/cashi'
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  modules: ['@nuxtjs/supabase', '@pinia/nuxt', '@primevue/nuxt-module'],
+  modules: ['@nuxtjs/supabase', '@pinia/nuxt', '@primevue/nuxt-module', '@vite-pwa/nuxt'],
+  app: {
+    head: {
+      meta: [
+        { name: 'theme-color', content: '#1f5aff' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+        { name: 'apple-mobile-web-app-title', content: 'Cashi' },
+      ],
+      link: [
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
+      ],
+    },
+  },
   css: [
     '@fontsource/space-grotesk/latin-500.css',
     '@fontsource/space-grotesk/latin-600.css',
@@ -30,6 +45,59 @@ export default defineNuxtConfig({
   supabase: {
     redirect: false,
     types: '~/types/database.ts',
+  },
+  pwa: {
+    registerType: 'prompt',
+    strategies: 'generateSW',
+    manifest: {
+      id: '/',
+      name: 'Cashi · Inventario y ganancias',
+      short_name: 'Cashi',
+      description: 'Inventario, caja, gastos y finanzas de tu negocio en un solo lugar.',
+      lang: 'es',
+      start_url: '/',
+      scope: '/',
+      display: 'standalone',
+      background_color: '#fbfaf6',
+      theme_color: '#1f5aff',
+      icons: [
+        {
+          src: '/pwa-192x192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: '/pwa-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: '/pwa-maskable-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+      ],
+    },
+    workbox: {
+      globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+      navigateFallback: '/',
+      additionalManifestEntries: [
+        { url: '/', revision: 'app-shell-v1' },
+      ],
+      cleanupOutdatedCaches: true,
+      clientsClaim: true,
+      skipWaiting: false,
+    },
+    client: {
+      installPrompt: true,
+      periodicSyncForUpdates: 3600,
+    },
+    devOptions: {
+      enabled: false,
+    },
   },
   primevue: {
     components: {

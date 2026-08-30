@@ -34,6 +34,7 @@
     "app:test:inventory": "npm --prefix app run test:inventory",
     "app:test:inventory-import": "npm --prefix app run test:inventory-import",
     "app:test:onboarding": "npm --prefix app run test:onboarding",
+    "app:test:pwa": "npm --prefix app run test:pwa",
     "app:test:purchases": "npm --prefix app run test:purchases",
     "app:test:quotes": "npm --prefix app run test:quotes",
     "app:test:reports": "npm --prefix app run test:reports",

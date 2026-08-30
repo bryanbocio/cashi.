@@ -335,6 +335,7 @@ Formato: `ID · título — entregable — criterio de aceptación`. `dep:` = de
 
 - **X9.1 · Estados vacíos y errores** — cada lista con su mensaje de vacío; toasts para errores de RPC; pantalla de sesión expirada.
 - **X9.2 · Pruebas E2E** — Playwright contra Supabase local: registro → crear negocio → venta completa → cotización a fiado → abono total → recibir compra → navegar a un mes anterior; y un test de aislamiento entre dos negocios del mismo usuario.
+- **PWA.1 · Aplicación instalable** — manifest e iconos propios, shell estático precargado, aviso de actualización y bloqueo global al perder la conexión. Supabase, documentos y datos autenticados siguen exclusivamente por red; esta fase no encola escrituras. *Aceptación*: se instala como `standalone`, una navegación sin red carga el shell y ninguna ruta de Supabase aparece en el service worker.
 - **X9.3 · Despliegue** — proyecto Supabase de producción, migraciones por CI (`supabase db push`), Nuxt en Vercel con variables de entorno, backups diarios activados.
 - **X9.4 · Observabilidad** — logs de Edge Functions revisables, Sentry (o similar) en el frontend, y una consulta guardada de errores de RPC.
 
@@ -356,6 +357,6 @@ Formato: `ID · título — entregable — criterio de aceptación`. `dep:` = de
 
 1. ¿Empleados con acceso (rol CASHIER) en el corto plazo? El esquema ya lo soporta; falta decidir invitaciones y qué puede ver un cajero.
 2. Impuestos: el plan asume precios con impuesto incluido y sin desglose. Confirmar si hace falta IVA por línea.
-3. ¿Modo sin conexión para la caja (PWA con cola local)? Cambia el diseño de `create_sale` a idempotente por `client_uuid`.
+3. ¿Modo sin conexión real para la caja (segunda fase de la PWA con cola local)? Cambia el diseño de `create_sale` a idempotente por `client_uuid`; PWA.1 solo instala el shell y bloquea operaciones sin red.
 4. ¿Facturación electrónica más adelante? Requeriría campos fiscales en `sale` y un proveedor de firma.
 5. ¿Los negocios de una misma cuenta comparten catálogo de productos o son totalmente independientes? El plan asume independientes.
