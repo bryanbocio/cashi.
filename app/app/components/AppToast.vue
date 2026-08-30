@@ -14,6 +14,13 @@ const severityIcons = {
   error: IconCircleX,
 }
 
+const severityLabels = {
+  success: 'Listo',
+  info: 'Información',
+  warn: 'Atención',
+  error: 'Error',
+}
+
 const toastBreakpoints = {
   '759px': {
     top: 'max(12px, env(safe-area-inset-top))',
@@ -52,6 +59,7 @@ function severityOf(message: { severity?: string }): ToastSeverity {
         </span>
 
         <div class="cashi-toast__copy">
+          <span class="cashi-toast__kind">{{ severityLabels[severityOf(message)] }}</span>
           <strong class="cashi-toast__summary">{{ message.summary }}</strong>
           <p v-if="message.detail" class="cashi-toast__detail">{{ message.detail }}</p>
         </div>
@@ -90,35 +98,23 @@ function severityOf(message: { severity?: string }): ToastSeverity {
 .cashi-toast__card {
   --toast-tone: var(--color-accent);
   --toast-soft: #eef3ff;
-  --toast-line: rgba(31, 90, 255, 0.22);
+  --toast-line: rgba(31, 90, 255, 0.18);
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 46px;
+  grid-template-columns: 36px minmax(0, 1fr) 46px;
   align-items: start;
-  gap: 11px;
+  gap: 10px;
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--toast-line);
-  border-radius: 16px 11px 11px 16px;
+  border-radius: 14px;
   background:
-    radial-gradient(circle at 92% 10%, color-mix(in srgb, var(--toast-tone) 11%, transparent) 0 2px, transparent 2.5px),
-    linear-gradient(135deg, #fff 0%, var(--color-paper) 100%);
-  background-size: 12px 12px, auto;
-  box-shadow: 0 18px 50px rgba(25, 24, 23, 0.18), 0 3px 10px rgba(25, 24, 23, 0.08);
-  padding: 13px 9px 13px 14px;
+    linear-gradient(90deg, color-mix(in srgb, var(--toast-tone) 5%, #fff) 0, #fff 38%),
+    #fff;
+  box-shadow: 0 14px 36px rgba(25, 24, 23, 0.14), 0 2px 8px rgba(25, 24, 23, 0.06);
+  padding: 12px 8px 12px 14px;
   color: var(--color-ink);
-}
-
-.cashi-toast__card::after {
-  position: absolute;
-  right: 10px;
-  bottom: 0;
-  left: 14px;
-  height: 3px;
-  background: repeating-linear-gradient(90deg, var(--toast-tone) 0 4px, transparent 4px 8px);
-  content: '';
-  opacity: 0.38;
 }
 
 .cashi-toast__card[data-severity='success'] {
@@ -141,23 +137,22 @@ function severityOf(message: { severity?: string }): ToastSeverity {
 
 .cashi-toast__accent {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 10px;
+  bottom: 10px;
   left: 0;
-  width: 5px;
+  width: 4px;
+  border-radius: 0 999px 999px 0;
   background: var(--toast-tone);
 }
 
 .cashi-toast__icon {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   place-items: center;
-  border: 1px solid var(--toast-line);
-  border-radius: 12px;
+  border-radius: 50%;
   background: var(--toast-soft);
   color: var(--toast-tone);
-  transform: rotate(-3deg);
 }
 
 .cashi-toast__icon svg {
@@ -168,7 +163,19 @@ function severityOf(message: { severity?: string }): ToastSeverity {
 
 .cashi-toast__copy {
   min-width: 0;
-  padding: 1px 0 2px;
+  padding: 0 0 1px;
+}
+
+.cashi-toast__kind {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--toast-tone);
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .cashi-toast__summary {
@@ -258,8 +265,8 @@ function severityOf(message: { severity?: string }): ToastSeverity {
   .cashi-toast__card {
     grid-template-columns: 36px minmax(0, 1fr) 46px;
     gap: 9px;
-    border-radius: 14px 9px 9px 14px;
-    padding: 11px 7px 11px 12px;
+    border-radius: 13px;
+    padding: 11px 7px 11px 13px;
   }
 
   .cashi-toast__icon {

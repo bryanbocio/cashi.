@@ -433,10 +433,10 @@ npm run db:types
 
 - `AppToast` reemplaza la presentación genérica de PrimeVue en toda la aplicación,
   sin cambiar los `useToast()` existentes ni sus contratos de negocio.
-- El diseño sigue el lenguaje de Cashi como una pequeña tarjeta tipo recibo:
-  tipografía del producto, franja y sello cromático por estado, patrón punteado,
-  iconos Lucide y animación breve. Éxito, información, advertencia y error tienen
-  tonos diferenciados sin sacrificar la legibilidad del texto.
+- El diseño sigue el lenguaje de Cashi con una tarjeta blanca compacta: tipografía
+  del producto, franja cromática, etiqueta breve del estado, iconos Lucide y una
+  animación discreta. Éxito, información, advertencia y error tienen tonos
+  diferenciados sin sacrificar la legibilidad del texto.
 - En pantallas menores de 760 px ocupa el ancho disponible con 12 px de margen,
   respeta el `safe-area-inset-top`, permite cortar palabras largas y apila varios
   avisos sin desbordar el viewport. El cierre mide 46 px para conservar un área
