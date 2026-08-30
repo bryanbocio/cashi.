@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 27 de agosto de 2026, después de completar X9.2 y de cerrar los dos huecos de producto que quedaban. **Las Fases 0 a 8 están terminadas** y la Fase 9 de cierre está empezada. **Las Fases 3, 4, 5 y 6 están terminadas** **la Fase 7 está terminada**: no queda ninguna vista sin datos reales.
+Actualizado: 30 de agosto de 2026, después de completar PWA.1. **Las Fases 0 a 8 están terminadas** y la Fase 9 de cierre está empezada. Cashi ya es instalable, pero el modo de Caja sin conexión con cola local sigue fuera de esta primera fase.
 
 ## Preferencias del usuario
 
@@ -64,6 +64,7 @@ Completado y versionado:
 | F8.1 | `6d5c87d` | Visor de documentos con descarga de PDF e imagen y conversión de cotizaciones |
 | X9.1 | `2f956af` | Pantalla de sesión expirada y repaso de estados vacíos |
 | X9.2 | `47943ec` | Recorrido completo sobre un negocio nuevo y aislamiento entre negocios |
+| PWA.1 | `18c0cbb` | Aplicación instalable, shell estático, actualización controlada y bloqueo sin conexión |
 | — | `41d2300` | Alta de clientes desde Caja y anulación de ventas desde el visor |
 
 Las tareas pendientes del `PLAN.md` son **X9.3 · Despliegue** y **X9.4 · Observabilidad**, y las dos necesitan hablarse con el usuario antes de empezar.
@@ -402,13 +403,41 @@ npm run db:types
 - `app/tests/dashboard-flow.mjs` crea una venta de hoy con `create_sale`, comprueba KPIs, margen, las 14 barras con la de hoy etiquetada, el orden de la rentabilidad, la venta reciente y su aviso documental, los tres grupos de alertas con su orden operativo, la navegación a Inventario con cada filtro, el selector de periodo completo (mes actual, mes anterior, los 18 meses, flechas y vuelta a Hoy) y la versión móvil con segmentado de ancho completo, etiquetas cortas, sin desbordes ni controles bajo 44 px. Las etiquetas de mes se calculan en la prueba para no depender de la fecha real; los importes se leen de `metrics_summary`. Borra la venta y restaura el stock del seed.
 - `supabase/tests/metrics_detail.test.sql` aporta 73 casos sobre reparto del descuento, serie continua con días en cero, productos y categorías reconciliados contra `metrics_summary`, producto borrado, márgenes indefinidos, los cuatro grupos de alertas con sus bordes (vence hoy no está vencido, orden recibida excluida, producto inactivo excluido), límites de entrada, permisos y aislamiento.
 
+## PWA instalable
+
+- `@vite-pwa/nuxt` `1.1.1` genera el manifest y el service worker en el build de
+  Nuxt 4.5.2. El módulo y `vite-plugin-pwa` usan licencia MIT.
+- El manifest abre Cashi como `standalone`, usa los colores del producto y lleva
+  iconos propios de 192 px, 512 px, maskable y Apple Touch. El recurso maestro
+  está en `app/app/assets/images/cashi-pwa-master.png`; sus derivados públicos
+  viven en `app/public/`.
+- El service worker precarga solamente el shell SPA neutro, los chunks, fuentes e
+  iconos. No existe `runtimeCaching` para Supabase, Edge Functions, documentos ni
+  respuestas autenticadas; todos esos datos siguen exclusivamente por red.
+- Si se pierde la conexión con la aplicación abierta, `PwaStatus` cubre la
+  interfaz y pausa ventas y demás operaciones. Una navegación posterior carga el
+  shell precargado, no una copia de los datos del negocio.
+- Las actualizaciones no se activan a mitad de una operación: se informa que hay
+  una versión nueva y el usuario elige cuándo recargar. Cuando el navegador
+  expone `beforeinstallprompt`, Cashi ofrece también su acción de instalación.
+- `app/tests/pwa-flow.mjs` valida el contrato del manifest, los tres iconos, la
+  existencia y control del service worker, que el shell atienda una navegación
+  sin red, que el bloqueo aparezca al desconectar y que el worker no contenga
+  rutas de Supabase o `document-pdf`.
+- La segunda fase —Caja operativa sin internet y sincronización posterior— sigue
+  siendo una decisión independiente: exige `client_uuid` idempotente, cola local
+  y reglas de conflicto para precio, costo, stock y sesión.
+
 ## Última validación
 
-Validaciones vigentes al completar X9.2:
+Validaciones vigentes al completar PWA.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
 - `npm --prefix app run smoke`: 14 rutas, cajón móvil y ausencia de errores de consola/hidratación.
+- `npm run app:test:pwa`: manifest instalable, iconos requeridos, service worker
+  controlando la página, shell disponible sin red, bloqueo global de operaciones
+  y ausencia de caché para Supabase y documentos.
 - `npm run app:test:reports`: cuatro cifras del mes, ganancia por categoría ordenada, mejor y peor producto, historial del periodo, aviso documental, CSV descargado y verificado línea por línea, cambio a Hoy y versión móvil accesible.
 - `npm run app:test:journey`: recorrido completo sobre un negocio **recién registrado**, no sobre el seed: registro con confirmación por Mailpit, creación del negocio, alta de producto por debajo del mínimo, venta de contado, alta de cliente desde la propia Caja con el carrito intacto, cotización con ese cliente convertida a fiado, abono total, orden sugerida creada y recibida, y comprobación de que el mes en curso cuadra en 30.000 mientras el anterior está vacío. Cierra comprobando en PostgreSQL 2 ventas, stock 24, 10.000 abonados y la orden `RECEIVED`. Borra su negocio y su usuario.
 - `npm run app:test:business-isolation`: dos negocios **del mismo usuario**, donde la RLS no protege nada y lo único que separa los datos es el filtro por negocio activo. Comprueba en las dos direcciones que inventario, buscador de Caja, gastos, cotizaciones, fiados, Reportes y Resumen no se mezclan, y confirma el reparto en PostgreSQL. Borra solo el negocio que creó.
