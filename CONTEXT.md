@@ -1,6 +1,6 @@
 # Contexto de trabajo — Cashi
 
-Actualizado: 30 de agosto de 2026, después de completar PWA.1. **Las Fases 0 a 8 están terminadas** y la Fase 9 de cierre está empezada. Cashi ya es instalable, pero el modo de Caja sin conexión con cola local sigue fuera de esta primera fase.
+Actualizado: 30 de agosto de 2026, después de completar PWA.1 y corregir la posición del SKU en el panel de Inventario. **Las Fases 0 a 8 están terminadas** y la Fase 9 de cierre está empezada. Cashi ya es instalable, pero el modo de Caja sin conexión con cola local sigue fuera de esta primera fase.
 
 ## Preferencias del usuario
 
@@ -32,6 +32,7 @@ Completado y versionado:
 | S2.1 | `62d45c7` | Vista `v_product_stats`, filtros de inventario e índices |
 | S2.2 | `64736d2` | RPC `adjust_stock` y cierre de escritura directa del stock |
 | F2.1 | `0eebe56` | Vista Inventario con filtros y panel de edición |
+| Mejora F2.1 | `e43cb52` | SKU completamente visible al abrir el panel de un producto |
 | — | `f8d56f0` | Recuperación del negocio propio ante un id guardado inválido |
 | — | `3b0cf81` | Responsive del Inventario entre 760 y 1120 px |
 | S2.3 | `673eb1e` | Edge Function `import-products` y RPC `import_products` |
@@ -269,7 +270,7 @@ npm run db:types
 - `app/app/utils/inventory.ts` centraliza el contrato de la vista: las columnas del `select`, la normalización de las columnas opcionales a `ProductRow`, el saneado del término de búsqueda y el estimado de margen del panel.
 - El `select` de PostgREST estrecha el tipo de la fila, así que el tipo de entrada de `toProductRow` es un `Pick` de la vista y no la vista completa; con la fila entera no compila.
 - El término de búsqueda se limpia de `,()"\` porque romperían la gramática del filtro `or` de PostgREST.
-- `InventoryProductPanel` edita costo, precio y mínimo con un `update`, y las existencias **solo** con `adjust_stock` y un motivo (cuatro presets más texto libre). El margen y el valor se recalculan en vivo como estimado antes de guardar; el dato de verdad lo devuelve la vista al refrescar.
+- `InventoryProductPanel` edita costo, precio y mínimo con un `update`, y las existencias **solo** con `adjust_stock` y un motivo (cuatro presets más texto libre). El margen y el valor se recalculan en vivo como estimado antes de guardar; el dato de verdad lo devuelve la vista al refrescar. El SKU es la primera línea del contenido sin margen negativo: PrimeVue recorta cualquier elemento que invada por arriba el área desplazable del drawer.
 - `app/app/composables/useMoney.ts` formatea montos y porcentajes con `Intl.NumberFormat` según la moneda del negocio activo, sin decimales, y muestra `—` cuando el margen es indefinido.
 - `ui/Drawer.vue` acepta `position`, `panelClass` y `header`; con `header` deja de usarse el modo sin relleno de la navegación móvil. El inventario lo abre a la derecha.
 - `supabase/functions/import-products/` es la primera Edge Function del proyecto. El contenedor `supabase_edge_runtime_cashi` que levanta `supabase start` ya la sirve en `http://127.0.0.1:54321/functions/v1/import-products`; **no hace falta `supabase functions serve`** aparte, y el runtime recarga en caliente al editar el archivo (si una prueba falla justo tras editar, puede estar usando el worker anterior: repítela).
@@ -430,7 +431,7 @@ npm run db:types
 
 ## Última validación
 
-Validaciones vigentes al completar PWA.1:
+Validaciones vigentes al completar PWA.1 y la mejora de F2.1:
 
 - `npm run app:typecheck`.
 - `npm run app:build`.
@@ -448,7 +449,7 @@ Validaciones vigentes al completar PWA.1:
 - `npm run app:test:credits`: resumen de $790.000, tres deudores, un vencido, abono completo de $280.000, desaparición del cliente, cartera final de $510.000, actualización del total mensual y versión móvil sin controles menores de 44 px. No deja fixtures.
 - `npm run app:test:expenses`: total mensual y distribución por categoría, filtro de categoría, rango de un solo día, alta y edición real con Otro y recurrente, borrado confirmado, persistencia en PostgreSQL, actualización inmediata del resumen y tarjetas móviles. No deja fixtures.
 - `npm run app:test:inventory-import`: alta manual con categoría y proveedor nuevos, aviso de SKU repetido, importación con una fila válida y una con decimales, y comprobación en PostgreSQL de lo guardado. Limpia sus fixtures al terminar.
-- `npm run app:test:inventory`: valoración completa al costo independiente de los filtros, listado, buscador, los tres filtros, panel con margen en vivo, guardado de precio, actualización del total al ajustar existencias, movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
+- `npm run app:test:inventory`: valoración completa al costo independiente de los filtros, listado, buscador, los tres filtros, SKU dentro de los límites visibles del drawer, panel con margen en vivo, guardado de precio, actualización del total al ajustar existencias, movimiento en PostgreSQL y versión móvil con área táctil de 44 px. Crea y elimina su propio producto de prueba en el negocio demo.
 - `npm run app:test:purchases`: crea la orden sugerida mixta, comprueba que no cambie stock al crear, la recibe desde la interfaz, valida stock/costos/movimientos en PostgreSQL y la tarjeta móvil accesible. No deja fixtures.
 - `npm run app:test:quotes`: guarda desde Caja con vigencia de 15 días, bloquea descuento, comprueba cero efectos de inventario al guardar, convierte a fiado y contado, bloquea vencidas, elimina y valida acciones móviles de 44 px. No deja fixtures.
 - `npm run app:test:auth`: flujo completo real contra Supabase local y Mailpit.
