@@ -7,6 +7,8 @@ const baseUrl = `http://localhost:${port}`
 const demoBusinessId = '20000000-0000-0000-0000-000000000001'
 const productA = '50000000-0000-0000-0000-000000000004'
 const productB = '50000000-0000-0000-0000-000000000008'
+const manualSku = `COM-${Date.now()}`
+const manualName = `Producto desde compra ${Date.now()}`
 const browserCandidates = [
   process.env.BROWSER_PATH,
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -27,10 +29,11 @@ function cleanupFixture() {
   psql(`
     delete from public.stock_movement where ref_id in (
       select id from public.purchase_order
-      where business_id = '${demoBusinessId}' and code = 'OC-0001'
+      where business_id = '${demoBusinessId}' and code in ('OC-0001', 'OC-0002')
     );
     delete from public.purchase_order
-      where business_id = '${demoBusinessId}' and code = 'OC-0001';
+      where business_id = '${demoBusinessId}' and code in ('OC-0001', 'OC-0002');
+    delete from public.product where business_id = '${demoBusinessId}' and sku = '${manualSku}';
     update public.product set stock = 3, cost = 9500 where id = '${productA}';
     update public.product set stock = 2, cost = 7000 where id = '${productB}';
     update public.doc_sequence set next_value = 1
@@ -142,6 +145,48 @@ try {
     throw new Error(`La recepción no actualizó inventario y auditoría como se esperaba: ${received}`)
   }
 
+  // El producto nuevo se crea sin salir de la compra y vuelve seleccionado con
+  // su proveedor y costo. Al recibir, sus existencias pasan de cero a cuatro.
+  await page.locator('[data-testid="purchase-open-manual"]').click()
+  await page.locator('[data-testid="purchase-create-product"]').click()
+  const productDialog = page.getByRole('dialog', { name: 'Nuevo producto' })
+  await productDialog.waitFor()
+  await page.locator('#product-name').fill(manualName)
+  await page.locator('#product-sku').fill(manualSku)
+  await page.locator('#product-supplier input').fill('Distribuciones Central')
+  await page.locator('#product-cost').fill('50000')
+  await page.locator('#product-cost').blur()
+  await page.locator('#product-price').fill('80000')
+  await page.locator('#product-price').blur()
+  await page.locator('[data-testid="product-create-submit"]').click()
+  await productDialog.waitFor({ state: 'hidden' })
+  await waitForText(page.locator('[data-testid="purchase-line-0"]'), manualName, 'Producto nuevo seleccionado en la compra')
+  await waitForText(page.getByRole('dialog', { name: 'Nueva compra' }), 'Distribuciones Central', 'Proveedor heredado por la compra')
+  await page.locator('[id^="purchase-qty-"]').fill('4')
+  await page.locator('[id^="purchase-qty-"]').blur()
+  await waitForText(page.locator('[data-testid="purchase-form-total"]'), '200,000.00', 'Total de la compra manual')
+  await page.locator('[data-testid="purchase-save-received"]').click()
+  await page.getByText('OC-0002 actualizó existencias y costos.').waitFor()
+  await waitForText(page.locator('[data-testid="purchase-order-count"]'), '2 órdenes', 'Conteo tras la compra manual')
+  await waitForText(page.locator('body'), 'Distribuciones Central', 'Proveedor de la compra manual')
+  await waitForText(page.locator('body'), '200,000.00', 'Costo de la compra manual')
+
+  const manual = psql(`
+    select po.status, po.supplier_id,
+      p.stock, p.cost, p.price,
+      (select count(*) from public.stock_movement m where m.ref_id = po.id and m.type = 'PURCHASE'),
+      (select sum(qty_delta) from public.stock_movement m where m.ref_id = po.id and m.type = 'PURCHASE'),
+      v.total_cost
+    from public.purchase_order po
+    join public.v_purchase_orders v on v.id = po.id
+    join public.purchase_line pl on pl.purchase_order_id = po.id
+    join public.product p on p.id = pl.product_id
+    where po.business_id = '${demoBusinessId}' and po.code = 'OC-0002';
+  `)
+  if (manual !== 'RECEIVED|40000000-0000-0000-0000-000000000001|4|50000|80000|1|4|200000') {
+    throw new Error(`La compra manual no quedó como se esperaba: ${manual}`)
+  }
+
   await page.setViewportSize({ width: 390, height: 844 })
   const card = page.locator(`[data-testid="purchase-card-${orderId}"]`)
   await card.waitFor({ state: 'visible' })
@@ -160,7 +205,7 @@ try {
   if (smallTargets.length) throw new Error(`Controles por debajo de 44 px en móvil: ${smallTargets.join(', ')}`)
 
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
-  console.log('PASS: Compras creó la sugerencia, recibió una sola vez, actualizó inventario y mostró tabla/tarjeta móvil accesible.')
+  console.log('PASS: Compras creó la sugerencia y una compra manual, recibió una sola vez, actualizó inventario y mostró tabla/tarjeta móvil accesible.')
 } catch (error) {
   const pageText = await page?.locator('body').innerText().catch(() => '')
   console.error(`URL final: ${page?.url() ?? 'sin página'}\nErrores del navegador: ${browserErrors.join(' | ') || 'ninguno'}\nContenido: ${pageText?.slice(0, 3500)}`)

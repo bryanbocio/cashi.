@@ -234,6 +234,11 @@ try {
     .map(({ id, box }) => `${id} (${Math.round(box.height)} px)`))
   if (smallTargets.length) throw new Error(`Controles del visor por debajo de 44 px: ${smallTargets.join(', ')}`)
 
+  const transparentActions = await page.evaluate(() => [...document.querySelectorAll('[data-testid="document-actions"] button:not(:disabled)')]
+    .filter(el => getComputedStyle(el).backgroundColor === 'rgba(0, 0, 0, 0)')
+    .map(el => el.getAttribute('data-testid') || el.textContent?.trim()))
+  if (transparentActions.length) throw new Error(`Acciones transparentes en el visor: ${transparentActions.join(', ')}`)
+
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
   // --- Anular la venta desde el propio visor ---
   await page.setViewportSize({ width: 1280, height: 900 })

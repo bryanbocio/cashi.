@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import IconPackagePlus from '~icons/lucide/package-plus'
 import IconPackageCheck from '~icons/lucide/package-check'
+import IconPlus from '~icons/lucide/plus'
 import { useToast } from 'primevue/usetoast'
 import type { Database, Json } from '~/types/database'
 import type { DataTableColumn } from '~/components/ui/DataTable.vue'
@@ -31,6 +32,12 @@ const loading = ref(true)
 const suggestionLoading = ref(true)
 const creating = ref(false)
 const receivingId = ref<string | null>(null)
+const manualOpen = ref(false)
+const productCreateOpen = ref(false)
+const createdProduct = ref<{ id: string; supplierId: string | null } | null>(null)
+const products = ref<Array<{ label: string; value: string; sku: string; cost: number }>>([])
+const suppliers = ref<Array<{ label: string; value: string }>>([])
+const categories = ref<Array<{ label: string; value: string }>>([])
 
 const columns: DataTableColumn[] = [
   { key: 'code', label: 'Orden', mono: true },
@@ -76,19 +83,57 @@ async function loadOrders(businessId = businessStore.activeBusinessId) {
   }
 }
 
+async function loadCatalog(businessId = businessStore.activeBusinessId) {
+  if (!businessId) return
+  const [productRows, supplierRows, categoryRows] = await Promise.all([
+    execute(client.from('product').select('id, name, sku, cost').eq('business_id', businessId).eq('active', true).order('name')),
+    execute(client.from('supplier').select('id, name').eq('business_id', businessId).order('name')),
+    execute(client.from('category').select('id, name').eq('business_id', businessId).order('name')),
+  ])
+  if (businessStore.activeBusinessId !== businessId) return
+  products.value = (productRows ?? []).map(product => ({
+    label: `${product.name} · ${product.sku}`,
+    value: product.id,
+    sku: product.sku,
+    cost: product.cost,
+  }))
+  suppliers.value = (supplierRows ?? []).map(supplier => ({ label: supplier.name, value: supplier.id }))
+  categories.value = (categoryRows ?? []).map(category => ({ label: category.name, value: category.id }))
+}
+
 async function initialize(businessId: string) {
   rows.value = []
   suggestion.value = { ...EMPTY_PURCHASE_SUGGESTION, lines: [] }
   loading.value = true
   suggestionLoading.value = true
-  await Promise.all([loadOrders(businessId), loadSuggestion(businessId)])
+  await Promise.all([loadOrders(businessId), loadSuggestion(businessId), loadCatalog(businessId)])
 }
 
 watch(() => businessStore.activeBusinessId, businessId => {
   creating.value = false
   receivingId.value = null
+  manualOpen.value = false
+  productCreateOpen.value = false
+  createdProduct.value = null
   if (businessId) initialize(businessId)
 }, { immediate: true })
+
+function openManualPurchase() {
+  createdProduct.value = null
+  manualOpen.value = true
+}
+
+async function afterProductCreated(product: { id: string; supplierId: string | null }) {
+  await loadCatalog()
+  createdProduct.value = { id: product.id, supplierId: product.supplierId }
+}
+
+async function afterManualPurchase() {
+  const businessId = businessStore.activeBusinessId
+  if (!businessId) return
+  createdProduct.value = null
+  await Promise.all([loadOrders(businessId), loadSuggestion(businessId), loadCatalog(businessId)])
+}
 
 async function createSuggestedOrder() {
   const businessId = businessStore.activeBusinessId
@@ -143,10 +188,15 @@ function orderDetail(order: PurchaseOrderRow) {
 
 <template>
   <section class="mx-auto w-full max-w-360 px-8 pt-7 pb-12 max-[760px]:px-4 max-[760px]:pt-5 min-[760px]:max-[1120px]:px-6">
-    <header class="mb-6.5">
-      <p class="mb-2 text-[9.5px] font-semibold tracking-[.1em] text-subtle uppercase">Abastecimiento</p>
-      <h1 class="mb-1.5 font-display text-[clamp(24px,2.4vw,34px)] leading-[1.12] font-bold tracking-[-.03em]">Compras a proveedor</h1>
-      <p class="max-w-190 text-[13.5px] text-muted"><span data-testid="purchase-pending-count">{{ pendingCount }} {{ pendingCount === 1 ? 'orden pendiente' : 'órdenes pendientes' }}</span> · Recibe mercancía y actualiza sus costos sin alterar ventas anteriores.</p>
+    <header class="mb-6.5 flex items-start justify-between gap-4 max-[760px]:flex-col">
+      <div>
+        <p class="mb-2 text-[9.5px] font-semibold tracking-[.1em] text-subtle uppercase">Abastecimiento</p>
+        <h1 class="mb-1.5 font-display text-[clamp(24px,2.4vw,34px)] leading-[1.12] font-bold tracking-[-.03em]">Compras a proveedor</h1>
+        <p class="max-w-190 text-[13.5px] text-muted"><span data-testid="purchase-pending-count">{{ pendingCount }} {{ pendingCount === 1 ? 'orden pendiente' : 'órdenes pendientes' }}</span> · Recibe mercancía y actualiza sus costos sin alterar ventas anteriores.</p>
+      </div>
+      <UiButton class="shrink-0 max-[760px]:w-full" data-testid="purchase-open-manual" @click="openManualPurchase">
+        <IconPlus class="size-4" aria-hidden="true" />Nueva compra
+      </UiButton>
     </header>
 
     <div
@@ -184,7 +234,7 @@ function orderDetail(order: PurchaseOrderRow) {
     <template v-else>
       <p class="mb-3 text-[11px] text-muted" aria-live="polite" data-testid="purchase-order-count">{{ rows.length }} {{ rows.length === 1 ? 'orden' : 'órdenes' }}</p>
 
-      <UiDataTable :columns="columns" :rows="rows" empty-message="Todavía no hay órdenes de compra. Crea la primera desde la sugerencia de reposición.">
+      <UiDataTable :columns="columns" :rows="rows" empty-message="Todavía no hay compras. Registra una con Nueva compra o usa la sugerencia de reposición.">
         <template #cell-code="{ row }"><strong>{{ (row as PurchaseOrderRow).code }}</strong><span class="mt-0.5 block font-sans text-[10.5px] text-subtle">{{ orderDetail(row as PurchaseOrderRow) }}</span></template>
         <template #cell-supplierName="{ row }"><strong class="font-medium">{{ (row as PurchaseOrderRow).supplierName }}</strong><span class="mt-0.5 block text-[10.5px] text-subtle">{{ (row as PurchaseOrderRow).lineCount }} {{ (row as PurchaseOrderRow).lineCount === 1 ? 'producto' : 'productos' }}</span></template>
         <template #cell-totalUnits="{ row }">{{ formatNumber((row as PurchaseOrderRow).totalUnits) }}</template>
@@ -201,7 +251,7 @@ function orderDetail(order: PurchaseOrderRow) {
         </template>
       </UiDataTable>
 
-      <UiCardList :items="rows" empty-message="Todavía no hay órdenes de compra. Crea la primera desde la sugerencia de reposición.">
+      <UiCardList :items="rows" empty-message="Todavía no hay compras. Registra una con Nueva compra o usa la sugerencia de reposición.">
         <template #default="{ item }">
           <article class="grid gap-3" :data-testid="`purchase-card-${(item as PurchaseOrderRow).id}`">
             <div class="flex items-center justify-between gap-3"><strong class="font-mono text-[12px]">{{ (item as PurchaseOrderRow).code }}</strong><UiChip :tone="purchaseStatusTone((item as PurchaseOrderRow).status)">{{ purchaseStatusLabel((item as PurchaseOrderRow).status) }}</UiChip></div>
@@ -221,5 +271,20 @@ function orderDetail(order: PurchaseOrderRow) {
     </template>
 
     <p class="mt-5 max-w-190 text-[12px] leading-relaxed text-muted">Al recibir una orden, el costo unitario actualiza el costo actual del producto y recalcula su margen. Las ventas anteriores conservan el costo que tenían al cobrarse.</p>
+
+    <PurchasesPurchaseFormModal
+      v-model:open="manualOpen"
+      :products="products"
+      :suppliers="suppliers"
+      :created-product="createdProduct"
+      @create-product="productCreateOpen = true"
+      @created="afterManualPurchase"
+    />
+    <InventoryProductFormModal
+      v-model:open="productCreateOpen"
+      :categories="categories"
+      :suppliers="suppliers"
+      @created="afterProductCreated"
+    />
   </section>
 </template>

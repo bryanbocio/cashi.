@@ -121,6 +121,17 @@ try {
   await waitForText(inventoryTotal, money(expectedTotal), 'Valor total inicial del inventario')
   await page.locator(`[data-testid="row-${sku}"]`).waitFor()
 
+  const misalignedColumns = await page.evaluate(() => {
+    const table = document.querySelector('.p-datatable-table')
+    const headers = [...(table?.querySelectorAll('thead th') ?? [])]
+    const cells = [...(table?.querySelectorAll('tbody tr:first-child td') ?? [])]
+    return [2, 3, 4, 5, 6]
+      .filter(index => getComputedStyle(headers[index]?.querySelector('.p-datatable-column-header-content')).justifyContent !== 'flex-end'
+        || getComputedStyle(cells[index]).textAlign !== 'right')
+      .map(index => headers[index]?.textContent?.trim() || `columna ${index + 1}`)
+  })
+  if (misalignedColumns.length) throw new Error(`Columnas numéricas desalineadas: ${misalignedColumns.join(', ')}`)
+
   // Buscador: reduce la lista a un solo producto.
   await page.locator('#inventory-search').fill(sku)
   await waitForText(count, '1 producto', 'Conteo tras buscar por SKU')
@@ -196,6 +207,8 @@ try {
   await waitForText(count, '1 producto', 'Conteo móvil tras buscar el producto')
   const card = page.locator(`[data-testid="card-${sku}"]`)
   await card.waitFor()
+  await waitForText(page.locator(`[data-testid="card-price-${sku}"]`), money(20000), 'Precio de venta destacado en la tarjeta móvil')
+  await waitForText(page.locator(`[data-testid="card-cost-value-${sku}"]`), money(120000), 'Valor acumulado al costo en el detalle de la tarjeta móvil')
   const cardBox = await card.boundingBox()
   if (!cardBox || cardBox.height < 44) {
     throw new Error(`El botón de la tarjeta mide ${cardBox?.height ?? 0} px de alto y debe tener al menos 44.`)

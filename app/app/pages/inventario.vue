@@ -254,7 +254,10 @@ function clearFilters() {
                 <strong class="block font-semibold">{{ (item as ProductRow).name }}</strong>
                 <span class="font-mono text-[10.5px] text-subtle">{{ (item as ProductRow).sku }}</span>
               </div>
-              <strong class="shrink-0 font-mono text-[13px]">{{ formatMoney((item as ProductRow).inventoryValue) }}</strong>
+              <div class="shrink-0 text-right">
+                <span class="block text-[9.5px] text-subtle">Precio de venta</span>
+                <strong class="block font-mono text-[13px]" :data-testid="`card-price-${(item as ProductRow).sku}`">{{ formatMoney((item as ProductRow).price) }}</strong>
+              </div>
             </div>
 
             <div class="flex flex-wrap gap-1.5">
@@ -265,7 +268,7 @@ function clearFilters() {
 
             <dl class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
               <div class="flex justify-between gap-2"><dt class="text-subtle">Costo</dt><dd class="m-0 font-mono">{{ formatMoney((item as ProductRow).cost) }}</dd></div>
-              <div class="flex justify-between gap-2"><dt class="text-subtle">Precio</dt><dd class="m-0 font-mono">{{ formatMoney((item as ProductRow).price) }}</dd></div>
+              <div class="flex justify-between gap-2"><dt class="text-subtle">Valor al costo</dt><dd class="m-0 font-mono" :data-testid="`card-cost-value-${(item as ProductRow).sku}`">{{ formatMoney((item as ProductRow).inventoryValue) }}</dd></div>
               <div class="flex justify-between gap-2"><dt class="text-subtle">Margen</dt><dd class="m-0 font-mono">{{ formatPercent((item as ProductRow).marginPct) }}</dd></div>
               <div class="flex justify-between gap-2"><dt class="text-subtle">Stock</dt><dd class="m-0 font-mono">{{ formatNumber((item as ProductRow).stock) }} / {{ formatNumber((item as ProductRow).minStock) }}</dd></div>
             </dl>

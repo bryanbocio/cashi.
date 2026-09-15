@@ -1,10 +1,10 @@
 <script setup lang="ts">
 const model = defineModel<boolean>({ default: false })
-defineProps<{ title: string }>()
+withDefaults(defineProps<{ title: string; width?: string }>(), { width: 'min(520px, calc(100vw - 32px))' })
 </script>
 
 <template>
-  <PrimeDialog v-model:visible="model" modal :header="title" :style="{ width: 'min(520px, calc(100vw - 32px))' }" :dismissable-mask="true">
+  <PrimeDialog v-model:visible="model" modal :header="title" :style="{ width }" :dismissable-mask="true">
     <slot />
     <template v-if="$slots.footer" #footer><slot name="footer" /></template>
   </PrimeDialog>

@@ -1174,6 +1174,16 @@ export type Database = {
         Args: { p_currency: string; p_name: string; p_timezone: string }
         Returns: string
       }
+      create_purchase_order: {
+        Args: {
+          p_business: string
+          p_expected: string | null
+          p_lines: Json
+          p_receive: boolean
+          p_supplier: string | null
+        }
+        Returns: Json
+      }
       create_quote: {
         Args: {
           p_business: string
@@ -1459,4 +1469,3 @@ export const Constants = {
     },
   },
 } as const
-

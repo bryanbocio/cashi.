@@ -4,9 +4,10 @@ import type { Database } from '~/types/database'
 import { buildSku, nextSkuSequence, skuPrefixFromName } from '~/utils/inventory'
 
 type Option = { label: string; value: string }
+type CreatedProduct = { id: string; name: string; sku: string; cost: number; supplierId: string | null }
 
 const props = defineProps<{ categories: Option[]; suppliers: Option[] }>()
-const emit = defineEmits<{ created: [] }>()
+const emit = defineEmits<{ created: [product: CreatedProduct] }>()
 const open = defineModel<boolean>('open', { default: false })
 
 const client = useSupabaseClient<Database>()
@@ -104,17 +105,20 @@ async function submit() {
     const supplierId = await resolveFacet('supplier', form.supplier, props.suppliers)
     const sku = result.data.sku || await generateSku(businessId, result.data.name)
 
-    const { error } = await client.from('product').insert({
-      business_id: businessId,
-      sku,
-      name: result.data.name,
-      category_id: categoryId,
-      supplier_id: supplierId,
-      cost: result.data.cost,
-      price: result.data.price,
-      stock: result.data.stock,
-      min_stock: result.data.minStock,
-    })
+    const { data: created, error } = await client.from('product')
+      .insert({
+        business_id: businessId,
+        sku,
+        name: result.data.name,
+        category_id: categoryId,
+        supplier_id: supplierId,
+        cost: result.data.cost,
+        price: result.data.price,
+        stock: result.data.stock,
+        min_stock: result.data.minStock,
+      })
+      .select('id, name, sku, cost, supplier_id')
+      .single()
 
     if (error) {
       // El índice único de (business_id, sku) es la causa habitual y merece un
@@ -127,8 +131,15 @@ async function submit() {
       return
     }
 
+    if (!created) return
     open.value = false
-    emit('created')
+    emit('created', {
+      id: created.id,
+      name: created.name,
+      sku: created.sku,
+      cost: created.cost,
+      supplierId: created.supplier_id,
+    })
   } catch {
     // El wrapper ya presentó el error traducido.
   } finally {

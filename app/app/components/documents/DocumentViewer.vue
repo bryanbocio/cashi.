@@ -237,15 +237,18 @@ const canConvertToCredit = computed(() => view.value?.canConvert && view.value.c
           <div style="font:400 11px/1.6 'IBM Plex Sans',system-ui,sans-serif;color:#8c8880;border-top:1px solid rgba(25,24,23,.08);padding-top:12px" data-testid="document-note">{{ view.note }}</div>
         </div>
 
-        <div class="flex flex-wrap justify-center gap-2 pb-3">
+        <div
+          class="flex flex-wrap justify-center gap-2 rounded-[10px] border border-black/10 bg-panel p-2.5 shadow-[0_8px_24px_rgba(0,0,0,.16)]"
+          data-testid="document-actions"
+        >
           <UiButton :disabled="!view || busy" :loading="downloading" data-testid="document-pdf" @click="downloadPdf">Descargar PDF</UiButton>
-          <UiButton variant="secondary" :disabled="!view || busy" :loading="exporting" data-testid="document-image" @click="downloadImage">Descargar imagen</UiButton>
+          <UiButton variant="secondary" class="!bg-panel hover:!bg-surface" :disabled="!view || busy" :loading="exporting" data-testid="document-image" @click="downloadImage">Descargar imagen</UiButton>
           <template v-if="view?.canConvert">
-            <UiButton variant="secondary" :disabled="busy" :loading="converting === 'CASH'" data-testid="document-to-sale" @click="convert('CASH')">Convertir en venta</UiButton>
-            <UiButton variant="secondary" :disabled="busy || !canConvertToCredit" :loading="converting === 'CREDIT'" data-testid="document-to-credit" @click="convert('CREDIT')">Convertir en fiado</UiButton>
+            <UiButton variant="secondary" class="!bg-panel hover:!bg-surface" :disabled="busy" :loading="converting === 'CASH'" data-testid="document-to-sale" @click="convert('CASH')">Convertir en venta</UiButton>
+            <UiButton variant="secondary" class="!bg-panel hover:!bg-surface" :disabled="busy || !canConvertToCredit" :loading="converting === 'CREDIT'" data-testid="document-to-credit" @click="convert('CREDIT')">Convertir en fiado</UiButton>
           </template>
           <UiButton v-if="canVoid" variant="danger" :disabled="busy" data-testid="document-void" @click="voidOpen = true">Anular venta</UiButton>
-          <UiButton variant="ghost" class="!text-white" :disabled="busy" data-testid="document-close" @click="close">Cerrar</UiButton>
+          <UiButton variant="secondary" class="!bg-panel hover:!bg-surface" :disabled="busy" data-testid="document-close" @click="close">Cerrar</UiButton>
         </div>
 
         <DocumentsVoidSaleModal
