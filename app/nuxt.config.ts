@@ -2,6 +2,8 @@ import tailwindcss from '@tailwindcss/vite'
 import Icons from 'unplugin-icons/vite'
 import CashiPreset from './app/themes/cashi'
 
+const appRevision = process.env.VERCEL_GIT_COMMIT_SHA || 'local'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -47,7 +49,7 @@ export default defineNuxtConfig({
     types: '~/types/database.ts',
   },
   pwa: {
-    registerType: 'prompt',
+    registerType: 'autoUpdate',
     strategies: 'generateSW',
     manifest: {
       id: '/',
@@ -85,11 +87,11 @@ export default defineNuxtConfig({
       globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
       navigateFallback: '/',
       additionalManifestEntries: [
-        { url: '/', revision: 'app-shell-v1' },
+        { url: '/', revision: `app-shell-${appRevision}` },
       ],
       cleanupOutdatedCaches: true,
       clientsClaim: true,
-      skipWaiting: false,
+      skipWaiting: true,
     },
     client: {
       installPrompt: true,
