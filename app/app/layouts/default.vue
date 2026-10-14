@@ -5,6 +5,7 @@ import IconHandCoins from '~icons/lucide/hand-coins'
 import IconLayout from '~icons/lucide/layout-dashboard'
 import IconMenu from '~icons/lucide/menu'
 import IconPackage from '~icons/lucide/package-search'
+import IconStore from '~icons/lucide/store'
 import IconReceipt from '~icons/lucide/receipt-text'
 import IconSettings from '~icons/lucide/settings'
 import IconShoppingCart from '~icons/lucide/shopping-cart'
@@ -16,6 +17,7 @@ const navigation = [
   { label: 'Resumen', to: '/', icon: IconLayout },
   { label: 'Caja', to: '/caja', icon: IconShoppingCart },
   { label: 'Cotizaciones', to: '/cotizaciones', icon: IconFile },
+  { label: 'Catálogo', to: '/catalogo', icon: IconStore },
   { label: 'Inventario', to: '/inventario', icon: IconPackage },
   { label: 'Fiados', to: '/fiados', icon: IconHandCoins },
   { label: 'Gastos', to: '/gastos', icon: IconReceipt },

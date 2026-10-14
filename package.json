@@ -25,6 +25,7 @@
     "app:test:auth": "npm --prefix app run test:auth",
     "app:test:business-switcher": "npm --prefix app run test:business-switcher",
     "app:test:business-isolation": "npm --prefix app run test:business-isolation",
+    "app:test:catalog": "npm --prefix app run test:catalog",
     "app:test:caja": "npm --prefix app run test:caja",
     "app:test:credits": "npm --prefix app run test:credits",
     "app:test:dashboard": "npm --prefix app run test:dashboard",

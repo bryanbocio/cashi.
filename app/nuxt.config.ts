@@ -2,7 +2,10 @@ import tailwindcss from '@tailwindcss/vite'
 import Icons from 'unplugin-icons/vite'
 import CashiPreset from './app/themes/cashi'
 
-const appRevision = process.env.VERCEL_GIT_COMMIT_SHA || 'local'
+const runtimeProcess = (globalThis as typeof globalThis & {
+  process?: { env?: Record<string, string | undefined> }
+}).process
+const appRevision = runtimeProcess?.env?.VERCEL_GIT_COMMIT_SHA || 'local'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -37,6 +40,8 @@ export default defineNuxtConfig({
     '/': { ssr: false },
     '/caja': { ssr: false },
     '/cotizaciones': { ssr: false },
+    '/catalogo': { ssr: false },
+    '/catalogo/**': { ssr: true },
     '/inventario': { ssr: false },
     '/fiados': { ssr: false },
     '/gastos': { ssr: false },

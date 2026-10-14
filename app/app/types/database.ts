@@ -12,6 +12,8 @@ export type Database = {
       business: {
         Row: {
           address: string | null
+          catalog_enabled: boolean
+          catalog_token: string
           created_at: string
           created_by: string
           currency: string
@@ -25,6 +27,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          catalog_enabled?: boolean
+          catalog_token?: string
           created_at?: string
           created_by: string
           currency?: string
@@ -38,6 +42,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          catalog_enabled?: boolean
+          catalog_token?: string
           created_at?: string
           created_by?: string
           currency?: string
@@ -1247,6 +1253,7 @@ export type Database = {
           stock: number
         }[]
       }
+      get_public_catalog: { Args: { p_catalog: string }; Returns: Json }
       has_business_role: {
         Args: {
           p_business: string

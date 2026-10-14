@@ -14,6 +14,7 @@
     "test:auth": "node tests/auth-flow.mjs",
     "test:business-switcher": "node tests/business-switcher.mjs",
     "test:business-isolation": "node tests/business-isolation.mjs",
+    "test:catalog": "node tests/catalog-flow.mjs",
     "test:caja": "node tests/caja-flow.mjs",
     "test:credits": "node tests/credits-flow.mjs",
     "test:dashboard": "node tests/dashboard-flow.mjs",

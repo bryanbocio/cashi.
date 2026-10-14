@@ -4,7 +4,7 @@ export const ACTIVE_BUSINESS_STORAGE_KEY = 'cashi.active-business-id'
 
 type BusinessSummary = Pick<
   Database['public']['Tables']['business']['Row'],
-  'address' | 'currency' | 'id' | 'logo_path' | 'name' | 'nit' | 'phone' | 'timezone'
+  'address' | 'catalog_enabled' | 'catalog_token' | 'currency' | 'id' | 'logo_path' | 'name' | 'nit' | 'phone' | 'timezone'
 >
 
 export type BusinessMembership = Pick<
@@ -36,7 +36,7 @@ export const useBusinessStore = defineStore('business', () => {
       const previousBusinessId = activeBusinessId.value
       const { data, error } = await client
         .from('membership')
-        .select('id, business_id, role, business(id, name, nit, phone, address, currency, timezone, logo_path)')
+        .select('id, business_id, role, business(id, name, nit, phone, address, currency, timezone, logo_path, catalog_token, catalog_enabled)')
         .order('created_at', { ascending: true })
 
       if (error) throw error

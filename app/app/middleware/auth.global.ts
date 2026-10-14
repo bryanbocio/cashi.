@@ -21,7 +21,7 @@ export default defineNuxtRouteMiddleware((to) => {
   })
 
   if (!auth.isAuthenticated) {
-    if (ANONYMOUS_ROUTES.has(to.path)) return
+    if (ANONYMOUS_ROUTES.has(to.path) || to.path.startsWith('/catalogo/')) return
 
     // La marca se consume: el aviso se da una vez, no en cada intento.
     const expired = seenSession.value === '1'
