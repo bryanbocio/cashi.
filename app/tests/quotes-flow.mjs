@@ -104,19 +104,13 @@ try {
   await addProduct(page, 'aurora', 'PER-001')
   await page.locator('#caja-discount').fill('1000')
   await page.locator('#caja-discount').blur()
-  await page.locator('[data-testid="caja-save-quote"]').click()
-  await page.getByText('No se puede cotizar con descuento').waitFor()
-  if (await page.getByRole('dialog', { name: 'Guardar cotización' }).count()) {
-    throw new Error('El modal se abrió aunque el carrito tenía descuento.')
-  }
-
-  await page.locator('#caja-discount').fill('0')
-  await page.locator('#caja-discount').blur()
   await page.locator('#caja-customer').click()
   await page.getByRole('option', { name: /Ana P/ }).click()
 
   const stockBefore = psql("select stock from public.product where sku = 'PER-001';")
   await page.locator('[data-testid="caja-save-quote"]').click()
+  await waitForText(page.getByRole('dialog', { name: 'Guardar cotización' }), '78,000.00', 'Total cotizado con descuento')
+  await waitForText(page.getByRole('dialog', { name: 'Guardar cotización' }), '1,000.00', 'Descuento de la cotización')
   const validUntilInput = page.locator('#quote-valid-until')
   await validUntilInput.waitFor()
   const defaultValidity = await validUntilInput.inputValue()
@@ -128,7 +122,7 @@ try {
   await page.getByText('Cotización COT-0001 guardada').waitFor()
 
   const first = psql(`
-    select q.id, q.code, q.status, q.total, c.name,
+    select q.id, q.code, q.status, q.discount, q.total, c.name,
       q.valid_until = ((current_timestamp at time zone b.timezone)::date + 15),
       (select count(*) from public.quote_line l where l.quote_id = q.id),
       (select count(*) from public.sale s where s.quote_id = q.id),
@@ -138,26 +132,33 @@ try {
     where q.business_id = '${demoBusinessId}' and q.code = 'COT-0001';
   `)
   const [firstQuoteId, ...firstValues] = first.split('|')
-  if (!firstQuoteId || firstValues.join('|') !== 'COT-0001|OPEN|79000|Ana Pérez|t|1|0|0') {
+  if (!firstQuoteId || firstValues.join('|') !== 'COT-0001|OPEN|1000|78000|Ana Pérez|t|1|0|0') {
     throw new Error(`La primera cotización no quedó como se esperaba: ${first}`)
   }
   if (psql("select stock from public.product where sku = 'PER-001';") !== stockBefore) {
     throw new Error('Guardar la cotización alteró el stock.')
   }
 
-  await waitForText(page.locator('[data-testid="quote-open-total"]'), '79,000.00', 'Total vigente')
+  await waitForText(page.locator('[data-testid="quote-open-total"]'), '78,000.00', 'Total vigente')
   await waitForText(page.locator('body'), 'Perfume Aurora', 'Detalle de la cotización')
+  await page.locator(`[data-testid="quote-document-${firstQuoteId}"]`).click()
+  const discountedDocument = page.locator('[data-testid="document-paper"]')
+  await waitForText(discountedDocument, 'Subtotal', 'Subtotal del documento')
+  await waitForText(discountedDocument, 'Descuento', 'Descuento explícito del documento')
+  await waitForText(discountedDocument, '1,000.00', 'Monto descontado del documento')
+  await waitForText(discountedDocument, '78,000.00', 'Total neto del documento')
+  await page.locator('[data-testid="document-close"]').click()
   await page.locator(`[data-testid="quote-credit-${firstQuoteId}"]`).click()
   await page.getByText('Cotización pasada a fiado').waitFor()
   await page.locator(`[data-testid="quote-credit-${firstQuoteId}"]`).waitFor({ state: 'detached' })
 
   const convertedCredit = psql(`
-    select q.status, s.payment_method, s.total,
+    select q.status, s.payment_method, s.discount, s.total,
       (select stock from public.product where sku = 'PER-001'),
       (select count(*) from public.stock_movement m where m.ref_id = s.id and m.type = 'SALE')
     from public.quote q join public.sale s on s.quote_id = q.id where q.id = '${firstQuoteId}';
   `)
-  if (convertedCredit !== 'CONVERTED|CREDIT|79000|11|1') {
+  if (convertedCredit !== 'CONVERTED|CREDIT|1000|78000|11|1') {
     throw new Error(`La conversión a fiado no quedó como se esperaba: ${convertedCredit}`)
   }
 
@@ -216,7 +217,7 @@ try {
   }
 
   if (browserErrors.length) throw new Error(`Errores del navegador:\n${browserErrors.join('\n')}`)
-  console.log('PASS: Caja guardó cotizaciones sin descuento ni efecto en stock; el listado convirtió a fiado/contado, bloqueó vencidas y respondió en móvil.')
+  console.log('PASS: Caja guardó cotizaciones con descuento y sin afectar stock; el listado conservó el descuento al convertir, bloqueó vencidas y respondió en móvil.')
 } catch (error) {
   const pageText = await page?.locator('body').innerText().catch(() => '')
   console.error(`URL final: ${page?.url() ?? 'sin página'}\nErrores del navegador: ${browserErrors.join(' | ') || 'ninguno'}\nContenido: ${pageText?.slice(0, 3500)}`)

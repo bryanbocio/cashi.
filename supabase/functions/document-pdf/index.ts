@@ -142,7 +142,7 @@ async function loadSale(supabase: any, id: string): Promise<Loaded> {
 async function loadQuote(supabase: any, id: string): Promise<Loaded> {
   const { data: quote } = await supabase
     .from('v_quote_detail')
-    .select('id, business_id, code, customer_name, valid_until, status, total, created_at')
+    .select('id, business_id, code, customer_name, valid_until, status, discount, total, created_at')
     .eq('id', id)
     .maybeSingle()
 
@@ -165,8 +165,7 @@ async function loadQuote(supabase: any, id: string): Promise<Loaded> {
       paymentMethod: null,
       limitDate: quote.valid_until,
       status: quote.status,
-      // Las cotizaciones no llevan descuento: el total es el subtotal.
-      discount: 0,
+      discount: quote.discount ?? 0,
       total: quote.total ?? 0,
       // deno-lint-ignore no-explicit-any
       lines: (lines ?? []).map((line: any) => ({

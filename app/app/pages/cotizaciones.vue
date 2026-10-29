@@ -50,7 +50,7 @@ async function loadQuotes(businessId = businessStore.activeBusinessId) {
   try {
     const data = await execute(client
       .from('v_quote_detail')
-      .select('id, business_id, code, customer_id, customer_name, valid_until, status, total, created_at, line_count, total_units, detail')
+      .select('id, business_id, code, customer_id, customer_name, valid_until, status, subtotal, discount, total, created_at, line_count, total_units, detail')
       .eq('business_id', businessId)
       .in('status', ['OPEN', 'EXPIRED'])
       .order('created_at', { ascending: false }))
@@ -153,7 +153,7 @@ function isConverting(quote: QuoteRow, method: 'CASH' | 'CREDIT') {
         <template #cell-code="{ row }"><div class="grid justify-items-start gap-1"><strong>{{ (row as QuoteRow).code }}</strong><UiChip :tone="quoteStatusTone((row as QuoteRow).status)">{{ quoteStatusLabel((row as QuoteRow).status) }}</UiChip><span class="font-sans text-[10px] text-subtle">{{ quoteMeta(row as QuoteRow) }}</span></div></template>
         <template #cell-detail="{ row }"><strong class="block max-w-80 truncate font-medium">{{ (row as QuoteRow).detail }}</strong><span class="mt-0.5 block text-[10.5px] text-subtle">{{ formatNumber((row as QuoteRow).totalUnits) }} unidades · {{ (row as QuoteRow).lineCount }} productos</span></template>
         <template #cell-customerName="{ row }"><span :class="!(row as QuoteRow).customerId ? 'text-subtle' : ''">{{ (row as QuoteRow).customerName }}</span></template>
-        <template #cell-total="{ row }">{{ formatMoney((row as QuoteRow).total) }}</template>
+        <template #cell-total="{ row }"><span class="block">{{ formatMoney((row as QuoteRow).total) }}</span><span v-if="(row as QuoteRow).discount > 0" class="mt-0.5 block font-sans text-[10px] text-negative">-{{ formatMoney((row as QuoteRow).discount) }} desc.</span></template>
         <template #cell-actions="{ row }">
           <div class="flex flex-wrap justify-end gap-1.5">
             <UiButton :loading="isConverting(row as QuoteRow, 'CASH')" :disabled="(row as QuoteRow).status !== 'OPEN' || Boolean(convertingKey)" :title="(row as QuoteRow).status === 'EXPIRED' ? 'La cotización está vencida' : 'Convertir en venta de contado'" :data-testid="`quote-charge-${(row as QuoteRow).id}`" @click="convertQuote(row as QuoteRow, 'CASH')"><IconBanknote class="size-3.5" aria-hidden="true" />Cobrar</UiButton>
@@ -169,7 +169,7 @@ function isConverting(quote: QuoteRow, method: 'CASH' | 'CREDIT') {
           <article class="grid gap-3" :data-testid="`quote-card-${(item as QuoteRow).id}`">
             <div class="flex items-start justify-between gap-3"><div><strong class="font-mono text-[12px]">{{ (item as QuoteRow).code }}</strong><span class="mt-1 block text-[10px] text-subtle">{{ quoteMeta(item as QuoteRow) }}</span></div><UiChip :tone="quoteStatusTone((item as QuoteRow).status)">{{ quoteStatusLabel((item as QuoteRow).status) }}</UiChip></div>
             <div><strong class="block truncate font-medium">{{ (item as QuoteRow).detail }}</strong><span class="mt-0.5 block text-[10.5px] text-subtle">{{ (item as QuoteRow).customerName }}</span></div>
-            <dl class="grid grid-cols-2 gap-3 text-[11px]"><div><dt class="text-subtle">Contenido</dt><dd class="m-0 mt-1 font-mono">{{ formatNumber((item as QuoteRow).totalUnits) }} un. · {{ (item as QuoteRow).lineCount }} prod.</dd></div><div class="text-right"><dt class="text-subtle">Total</dt><dd class="m-0 mt-1 font-mono text-[15px] font-semibold">{{ formatMoney((item as QuoteRow).total) }}</dd></div></dl>
+            <dl class="grid grid-cols-2 gap-3 text-[11px]"><div><dt class="text-subtle">Contenido</dt><dd class="m-0 mt-1 font-mono">{{ formatNumber((item as QuoteRow).totalUnits) }} un. · {{ (item as QuoteRow).lineCount }} prod.</dd></div><div class="text-right"><dt class="text-subtle">Total</dt><dd class="m-0 mt-1 font-mono text-[15px] font-semibold">{{ formatMoney((item as QuoteRow).total) }}</dd><dd v-if="(item as QuoteRow).discount > 0" class="m-0 mt-0.5 text-[10px] text-negative">-{{ formatMoney((item as QuoteRow).discount) }} desc.</dd></div></dl>
             <div class="grid grid-cols-2 gap-2">
               <UiButton class="w-full" :loading="isConverting(item as QuoteRow, 'CASH')" :disabled="(item as QuoteRow).status !== 'OPEN' || Boolean(convertingKey)" :data-testid="`quote-charge-mobile-${(item as QuoteRow).id}`" @click="convertQuote(item as QuoteRow, 'CASH')"><IconBanknote class="size-4" aria-hidden="true" />Cobrar</UiButton>
               <UiButton class="w-full" variant="secondary" :loading="isConverting(item as QuoteRow, 'CREDIT')" :disabled="(item as QuoteRow).status !== 'OPEN' || !(item as QuoteRow).customerId || Boolean(convertingKey)" :data-testid="`quote-credit-mobile-${(item as QuoteRow).id}`" @click="convertQuote(item as QuoteRow, 'CREDIT')"><IconHandCoins class="size-4" aria-hidden="true" />A fiado</UiButton>

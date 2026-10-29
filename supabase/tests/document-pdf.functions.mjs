@@ -174,6 +174,13 @@ check(quoteModel.fileName === 'cotizacion-cot-0003.pdf', 'el archivo de la cotiz
 check(quoteModel.meta.some(item => item.label === 'Válida hasta'), 'la cotización imprime su vigencia')
 check(quoteModel.stamp === '', 'una cotización vigente no lleva sello')
 
+const discountedQuote = buildDocumentModel(business, {
+  ...baseQuote, code: 'COT-0006', discount: 9000, total: 70000,
+})
+check(discountedQuote.totals.length === 3, 'la cotización con descuento imprime subtotal, descuento y total')
+check(discountedQuote.totals[1].value === formatDocumentMoney(-9000, 'COP'), 'el descuento cotizado se imprime en negativo')
+check(discountedQuote.totals[2].value === formatDocumentMoney(70000, 'COP'), 'la cotización imprime el total descontado')
+
 const expired = buildDocumentModel(business, { ...baseQuote, code: 'COT-0004', limitDate: '2026-08-01', status: 'EXPIRED' })
 check(expired.stamp === 'VENCIDA', 'la cotización vencida lleva sello')
 

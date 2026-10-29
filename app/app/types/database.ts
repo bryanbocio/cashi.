@@ -517,6 +517,7 @@ export type Database = {
           code: string
           created_at: string
           customer_id: string | null
+          discount: number
           id: string
           status: Database["public"]["Enums"]["quote_status"]
           total: number
@@ -528,6 +529,7 @@ export type Database = {
           code: string
           created_at?: string
           customer_id?: string | null
+          discount?: number
           id?: string
           status?: Database["public"]["Enums"]["quote_status"]
           total?: number
@@ -539,6 +541,7 @@ export type Database = {
           code?: string
           created_at?: string
           customer_id?: string | null
+          discount?: number
           id?: string
           status?: Database["public"]["Enums"]["quote_status"]
           total?: number
@@ -1034,10 +1037,12 @@ export type Database = {
           customer_name: string | null
           customer_phone: string | null
           detail: string | null
+          discount: number | null
           gross_profit: number | null
           id: string | null
           line_count: number | null
           status: Database["public"]["Enums"]["quote_status"] | null
+          subtotal: number | null
           total: number | null
           total_units: number | null
           updated_at: string | null
@@ -1190,15 +1195,26 @@ export type Database = {
         }
         Returns: Json
       }
-      create_quote: {
-        Args: {
-          p_business: string
-          p_customer: string
-          p_lines: Json
-          p_valid_until: string
-        }
-        Returns: Json
-      }
+      create_quote:
+        | {
+            Args: {
+              p_business: string
+              p_customer: string
+              p_lines: Json
+              p_valid_until: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_business: string
+              p_customer: string
+              p_discount: number
+              p_lines: Json
+              p_valid_until: string
+            }
+            Returns: Json
+          }
       create_sale: {
         Args: {
           p_business: string

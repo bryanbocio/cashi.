@@ -93,21 +93,12 @@ async function charge() {
 
 function openQuote() {
   if (cart.isEmpty || charging.value || quoting.value) return
-  if (cart.discount > 0) {
-    toast.add({
-      severity: 'warn',
-      summary: 'No se puede cotizar con descuento',
-      detail: 'Retira el descuento del carrito para guardar la cotización.',
-      life: 5000,
-    })
-    return
-  }
   quoteOpen.value = true
 }
 
 async function saveQuote(validUntil: string) {
   const businessId = businessStore.activeBusinessId
-  if (!businessId || cart.isEmpty || quoting.value || cart.discount > 0) return
+  if (!businessId || cart.isEmpty || quoting.value) return
 
   quoting.value = true
   try {
@@ -116,12 +107,13 @@ async function saveQuote(validUntil: string) {
       p_customer: cart.customerId,
       p_lines: cart.saleLines,
       p_valid_until: validUntil,
+      p_discount: cart.discount,
     } as Database['public']['Functions']['create_quote']['Args']
     const quote = await execute(client.rpc('create_quote', args)) as QuoteResult | null
     toast.add({
       severity: 'success',
       summary: `Cotización ${quote?.code ?? ''} guardada`.trim(),
-      detail: `${formatMoney(quote?.total ?? cart.subtotal)} sin afectar el inventario.`,
+      detail: `${formatMoney(quote?.total ?? cart.total)} sin afectar el inventario.`,
       life: 5000,
     })
     quoteOpen.value = false
@@ -188,6 +180,8 @@ async function saveQuote(validUntil: string) {
       v-model:open="quoteOpen"
       :saving="quoting"
       :subtotal="cart.subtotal"
+      :discount="cart.discount"
+      :total="cart.total"
       :customer-name="customerName"
       @save="saveQuote"
     />

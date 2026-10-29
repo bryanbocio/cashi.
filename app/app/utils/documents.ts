@@ -109,7 +109,7 @@ export async function loadSaleDocument(client: Client, id: string, timezone: str
 export async function loadQuoteDocument(client: Client, id: string, timezone: string) {
   const { data: quote, error } = await client
     .from('v_quote_detail')
-    .select('id, code, customer_name, customer_phone, valid_until, status, total, created_at')
+    .select('id, code, customer_name, customer_phone, valid_until, status, subtotal, discount, total, created_at')
     .eq('id', id)
     .maybeSingle()
   if (error || !quote?.id || !quote.code || !quote.created_at || !quote.valid_until) return null
@@ -131,9 +131,8 @@ export async function loadQuoteDocument(client: Client, id: string, timezone: st
     issuedLabel: issuedLabel(quote.created_at, timezone),
     detail: { label: 'Válida hasta', value: formatCalendarDate(quote.valid_until) },
     status,
-    // La cotización no lleva descuento: el total es el subtotal.
-    subtotal: quote.total ?? 0,
-    discount: 0,
+    subtotal: quote.subtotal ?? quote.total ?? 0,
+    discount: quote.discount ?? 0,
     total: quote.total ?? 0,
     lines: (lines ?? []).map(line => ({
       id: line.line_id ?? '',

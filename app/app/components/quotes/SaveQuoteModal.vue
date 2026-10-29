@@ -9,6 +9,8 @@ import {
 const props = defineProps<{
   saving: boolean
   subtotal: number
+  discount: number
+  total: number
   customerName: string
 }>()
 const emit = defineEmits<{ save: [validUntil: string] }>()
@@ -54,8 +56,12 @@ function submit() {
         </div>
         <div class="text-right">
           <span class="block text-[9.5px] font-semibold tracking-[.05em] text-subtle uppercase">Total cotizado</span>
-          <strong class="mt-1 block font-mono text-[15px]">{{ formatMoney(subtotal) }}</strong>
+          <strong class="mt-1 block font-mono text-[15px]">{{ formatMoney(total) }}</strong>
         </div>
+        <dl v-if="discount > 0" class="col-span-2 grid grid-cols-2 gap-2 border-t border-black/10 pt-2 text-[10.5px]">
+          <div class="flex justify-between gap-2"><dt class="text-muted">Subtotal</dt><dd class="m-0 font-mono">{{ formatMoney(subtotal) }}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-muted">Descuento</dt><dd class="m-0 font-mono text-negative">{{ formatMoney(-discount) }}</dd></div>
+        </dl>
       </div>
 
       <div>
@@ -76,7 +82,7 @@ function submit() {
       </div>
     </form>
 
-    <p class="mt-4 text-[11px] leading-relaxed text-muted">Las cotizaciones no admiten descuento y no afectan el inventario hasta convertirse en venta.</p>
+    <p class="mt-4 text-[11px] leading-relaxed text-muted">La cotización conservará el descuento y no afectará el inventario hasta convertirse en venta.</p>
 
     <template #footer>
       <UiButton variant="secondary" :disabled="saving" @click="open = false">Cancelar</UiButton>

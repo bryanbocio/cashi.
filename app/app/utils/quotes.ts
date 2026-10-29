@@ -3,7 +3,7 @@ import { formatCalendarDate, instantToBusinessDate } from '~/utils/expenses'
 
 type QuoteViewRow = Pick<Database['public']['Views']['v_quote_detail']['Row'],
   'id' | 'business_id' | 'code' | 'customer_id' | 'customer_name' |
-  'valid_until' | 'status' | 'total' | 'created_at' | 'line_count' |
+  'valid_until' | 'status' | 'subtotal' | 'discount' | 'total' | 'created_at' | 'line_count' |
   'total_units' | 'detail'
 >
 export type QuoteStatus = Database['public']['Enums']['quote_status']
@@ -16,6 +16,8 @@ export type QuoteRow = {
   customerName: string
   validUntil: string
   status: QuoteStatus
+  subtotal: number
+  discount: number
   total: number
   createdAt: string
   lineCount: number
@@ -33,6 +35,8 @@ export function toQuoteRow(row: QuoteViewRow): QuoteRow | null {
     customerName: row.customer_name ?? 'Sin cliente',
     validUntil: row.valid_until,
     status: row.status,
+    subtotal: row.subtotal ?? row.total ?? 0,
+    discount: row.discount ?? 0,
     total: row.total ?? 0,
     createdAt: row.created_at,
     lineCount: row.line_count ?? 0,
